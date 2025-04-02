@@ -36,6 +36,8 @@ export PYTHONPATH=$(pwd)
 python examples/main.py
 ```
 
+![example-run](docs/images/example-run.png)
+
 ## Troubleshooting
 If you encounter `ModuleNotFoundError: No module named 'src'`, try one of the following solutions:
 1. Run the script using `python -m examples.main` from the project root.
