@@ -27,13 +27,15 @@ source venv/bin/activate  # On Windows use: venv\Scripts\activate
 ## Usage
 Run the script from the project root to avoid module import issues:
 ```sh
-python -m examples.main
-```
+python -m examples.json-parsing
 
-Alternatively, set the `PYTHONPATH` to include the project root:
-```sh
-export PYTHONPATH=$(pwd)
-python examples/main.py
+# or 
+
+python -m examples.yaml-parsing
+
+# or
+
+python -m examples.xml-parsing
 ```
 
 ![example-run](docs/images/example-run.png)
