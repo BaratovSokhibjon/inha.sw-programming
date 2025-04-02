@@ -1,4 +1,4 @@
-# JSON Parser Project
+# Parser Project
 
 ## Overview
 This project provides a simple Python script to parse a JSON file and extract specific values, such as access tokens and expiration times.
@@ -51,7 +51,4 @@ If you encounter `ModuleNotFoundError: No module named 'src'`, try one of the fo
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
     from src import parse_json
     ```
-
-## License
-This project is open-source and available for modification and use.
 
