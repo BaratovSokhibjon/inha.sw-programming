@@ -1,11 +1,14 @@
-from xml.etree.ElementTree import tostring
-
 import requests
 import urllib.parse
 
+import yaml
+
+config = yaml.safe_load(open("config.yml"))
+
+
 geocode_url = "https://graphhopper.com/api/1/geocode?"
 route_url = "https://graphhopper.com/api/1/route?"
-key = "66e323e5-bc00-4f5a-bb39-b1f3afb36901"
+key = config["api_key"]
 
 
 def geocoding (location, key):

@@ -4,3 +4,6 @@
 #Virtual env
 venv
 *.venv*
+
+#Configs
+*config.yml
