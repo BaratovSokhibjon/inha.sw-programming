@@ -58,7 +58,7 @@ class Genai:
             return f"❌ Error parsing input: {str(e)}"
 
     def find_accommodations(self, destination):
-        prompt = (f"Can you recommend me any acomondation in Pinkafeld, no need for any specification! Just list me 3 "
+        prompt = (f"Can you recommend me any acomondation in '{destination}', no need for any specification! Just list me 3 "
                   f"accomodations in '{destination}' without any context in this format: Accomondation1, "
                   f"Accomondation2, Accomondation3")
         try:
