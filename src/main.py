@@ -2,7 +2,6 @@ import requests
 import urllib
 import os
 import dotenv
-
 from utils import *
 
 route_url = "https://graphhopper.com/api/1/route?"
@@ -24,12 +23,60 @@ genai_model = "gemini-2.0-flash"
 geo = Geocoding(graphhopper_api_key)
 gpt = Genai(genai_api_key, genai_model)
 
+
+import requests
+import os
+
+import requests
+
+class OpenMeteo:
+    def __init__(self):
+        self.base_url = "https://api.open-meteo.com/v1/forecast"
+
+    def get_weather(self, latitude, longitude, hours=0):
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "hourly": "temperature_2m,precipitation,wind_speed_10m,weathercode",
+            "current_weather": "true",
+            "forecast_days": 1,
+            "timezone": "auto"
+        }
+        response = requests.get(self.base_url, params=params)
+        if response.status_code == 200:
+            data = response.json()
+            current = data["current_weather"]
+            hourly = data["hourly"]
+
+            summary = f"🌡️ Current: {current['temperature']}°C, {self.decode_weather(current['weathercode'])}, wind {current['windspeed']} km/h\n"
+            forecast_summary = []
+            for i in range(hours):
+                forecast_summary.append(
+                    f"{hourly['time'][i]}: {hourly['temperature_2m'][i]}°C, {self.decode_weather(hourly['weathercode'][i])}, wind {hourly['wind_speed_10m'][i]} km/h"
+                )
+            forecast_text = "\n".join(forecast_summary)
+            
+            return summary, forecast_text
+        else:
+            return "❌ Error fetching data", ""
+
+    def decode_weather(self, code):
+        # Simple mapping for extreme conditions
+        weather_map = {
+            0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
+            45: "fog", 48: "depositing rime fog",
+            51: "light drizzle", 61: "light rain", 71: "light snow",
+            95: "thunderstorm", 96: "thunderstorm w/ hail"
+        }
+        return weather_map.get(code, "unknown")
+
+
+
 def check_quit(user_input):
     if user_input == "quit" or user_input == "q":
         return True
     else:
         return False
-
 
 def print_steps(data, orig, dest):
     distance_m = data["paths"][0]["distance"]
@@ -46,22 +93,19 @@ def print_steps(data, orig, dest):
     print("⏱️ Trip Duration: {:02d}:{:02d}:{:02d}".format(hours, minutes, sec))
     print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
-    # Generate and display AI route summary
     try:
-        summary = gpt.generate_route_summary(paths_data, orig, dest, vehicle)
+        summary = gpt.generate_route_summary(data, orig, dest, vehicle)
         print("🤖 AI Route Summary:")
         print(f"💬 {summary}")
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
     except Exception as e:
         print(f"⚠️ Couldn't generate route summary: {str(e)}")
 
-    for step in paths_data["paths"][0]["instructions"]:
+    for step in data["paths"][0]["instructions"]:
         path_text = step["text"]
-
-        # Choose the appropriate direction arrow based on the text
         direction_arrow = "➡️"  # default is right
-        path_text_lower = path_text.lower()
 
+        path_text_lower = path_text.lower()
         if "left" in path_text_lower:
             direction_arrow = "⬅️"
         elif "right" in path_text_lower:
@@ -95,6 +139,8 @@ def print_steps(data, orig, dest):
             print(f"{direction_arrow}     {path_text} ({distance_str})")
         else:
             print(f"{direction_arrow}     {path_text}")
+
+
 
 while True:
     print("🚗 Vehicle profiles available on Graphhopper: 🚗")
@@ -131,7 +177,6 @@ while True:
         except Exception as e:
             print(f"⚠️ Couldn't generate route summary: {str(e)}")
 
-
     elif orig_status == 200 and dest_status == 200:
         op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
         dp = "&point=" + str(dest_lat) + "%2C" + str(dest_lng)
@@ -155,6 +200,25 @@ while True:
 
     if paths_status == 200 and paths_data is not None:
         print_steps(paths_data, orig_loc, dest_loc)
+
+
+
+
+        print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+        print("Weather Checkpoint")
+        weather = OpenMeteo()
+        curr_weather = weather.get_weather(orig_lat, orig_lng, hours= 0)
+        forecast = weather.get_weather(dest_lat, dest_lng, hours=3)
+
+        weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, "3 hours", curr_weather, forecast)
+        print("🌦️ Weather Advisory:")
+        print(weather_advisory)
+
+
+
+
+
+
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
         voice_option = input("Would you like voice-like instructions? (y/n): ").lower()
