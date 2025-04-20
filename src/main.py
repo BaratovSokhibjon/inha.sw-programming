@@ -31,9 +31,9 @@ def check_quit(user_input):
         return False
 
 
-def print_steps(paths_data):
-    distance_m = paths_data["paths"][0]["distance"]
-    duration_ms = paths_data["paths"][0]["time"]
+def print_steps(data, orig, dest):
+    distance_m = data["paths"][0]["distance"]
+    duration_ms = data["paths"][0]["time"]
 
     miles = distance_m / 1000 / 1.61
     km = distance_m / 1000
@@ -48,7 +48,7 @@ def print_steps(paths_data):
 
     # Generate and display AI route summary
     try:
-        summary = gpt.generate_route_summary(paths_data, orig_loc[3], dest_loc[3], vehicle)
+        summary = gpt.generate_route_summary(paths_data, orig, dest, vehicle)
         print("🤖 AI Route Summary:")
         print(f"💬 {summary}")
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
@@ -154,7 +154,7 @@ while True:
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
     if paths_status == 200 and paths_data is not None:
-        print_steps(paths_data)
+        print_steps(paths_data, orig_loc, dest_loc)
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
         voice_option = input("Would you like voice-like instructions? (y/n): ").lower()
