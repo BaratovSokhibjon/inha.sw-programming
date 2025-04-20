@@ -17,3 +17,17 @@
     - Tohirov Komronbek (12235649)
     - Lukas Mathae(12244592)
     - Khudaynazarov Sunnatbek (12214745)
+
+## Features
+
+### Accommodation
+We use the Gemini API to find accommodations near the destination and list three of them!
+
+
+### Public
+Through the Gemini API, we achieved the creation of a public transportation route!
+
+#### Usage
+
+You need to answer the first question by using "public" to use the public transportation option. Afterwards, 
+you will be asked to provide a start and end location. Additionally, you have to give a start time.
