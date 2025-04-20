@@ -3,7 +3,7 @@ import urllib
 import os
 import dotenv
 
-from .utils import *
+from utils import *
 
 route_url = "https://graphhopper.com/api/1/route?"
 
@@ -58,7 +58,7 @@ while True:
         response = requests.get(paths_url)
         paths_status = response.status_code
         paths_data = response.json()
-    
+
         print("🛣️ Routing API Status: " + str(paths_status))
         print("🔗 Routing API URL:\n" + paths_url)
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
@@ -136,6 +136,13 @@ while True:
             if voice_option.startswith('y'):
                 natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
                 voice_navigation(natural_instructions)
+                print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+
+            accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
+            if accommodations_option.startswith('y'):
+                accommodations = gpt.find_accommodations(loc2)
+                print("Here are accommodations in " + loc2 + ".")
+                print(accommodations)
                 print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
         else:
             print("❌ Error message: " + paths_data.get("message", "Unknown error"))

@@ -6,7 +6,7 @@ class Genai:
             raise ValueError("Gemini API key cannot be empty or None")
         genai.configure(api_key=genai_api_key)
         self.model = genai.GenerativeModel(model_name)
-        
+
     def convert_to_natural_instructions(self, instructions):
         """Convert technical instructions to natural voice-like navigation"""
         instructions_text = "\n".join(
@@ -45,6 +45,14 @@ class Genai:
     def parse_natural_language_input(self, input_text):
         """Convert natural language input into structured location data using Gemini"""
         prompt = f"Extract specific location information from: '{input_text}' and return it as a JSON object."
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text
+        except Exception as e:
+            return f"❌ Error parsing input: {str(e)}"
+
+    def find_accommodations(self, destination):
+        prompt = f"Can you recommend me any acomondation in Pinkafeld, no need for any specification! Just list me 3 accomodations in '{destination}' without any context in this format: Accomondation1, Accomondation2, Accomondation3"
         try:
             response = self.model.generate_content(prompt)
             return response.text
