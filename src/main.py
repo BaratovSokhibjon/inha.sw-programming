@@ -121,12 +121,16 @@ while True:
     print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
     paths_status = 404
+    paths_data = None
     if vehicle == "public":
-        start_time = input("🏁 Please provide a start time (e.g. 1pm): ")
-        if check_quit(start_time):
-            break
-        paths_data = gpt.route_public_transportation(loc1, loc2, start_time)
-        paths_status = 200
+        try:
+            start_time = input("🏁 Please provide a start time (e.g. 1pm): ")
+            if check_quit(start_time):
+                break
+            paths_data, paths_status = gpt.route_public_transportation(loc1, loc2, start_time)
+        except Exception as e:
+            print(f"⚠️ Couldn't generate route summary: {str(e)}")
+
 
     elif orig_status == 200 and dest_status == 200:
         op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
@@ -149,7 +153,7 @@ while True:
         )
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
-    if paths_status == 200:
+    if paths_status == 200 and paths_data is not None:
         print_steps(paths_data)
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
@@ -159,8 +163,8 @@ while True:
         if voice_option.startswith('y'):
             natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
             voice_navigation(natural_instructions)
-            print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
+        print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
         accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
         if check_quit(accommodations_option):
             break
@@ -168,6 +172,6 @@ while True:
             accommodations = gpt.find_accommodations(loc2)
             print("Here are accommodations in " + loc2 + ".")
             print(accommodations)
-            print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+        print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
     else:
         print("❌ Error message: " + paths_data.get("message", "Unknown error"))

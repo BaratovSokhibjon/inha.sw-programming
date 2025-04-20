@@ -10,9 +10,14 @@ class Genai:
 
     def convert_to_natural_instructions(self, instructions):
         """Convert technical instructions to natural voice-like navigation"""
-        instructions_text = "\n".join(
-            [f"{i+1}. {step['text']} ({step['distance']}m)" for i, step in enumerate(instructions[:10])]
-        )
+        if "distance" in instructions:
+            instructions_text = "\n".join(
+                [f"{i + 1}. {step['text']} ({step['distance']}m)" for i, step in enumerate(instructions[:10])]
+            )
+        else:
+            instructions_text = "\n".join(
+                [f"{i + 1}. {step['text']})" for i, step in enumerate(instructions[:10])]
+            )
 
         prompt = (
             "Convert these technical navigation instructions to natural, voice-like navigation:\n"
@@ -81,6 +86,7 @@ class Genai:
                 cleaned = cleaned[7:-3]
 
             parsed_json = json.loads(cleaned)
-            return parsed_json
+            paths_status = 200
+            return parsed_json, paths_status
         except Exception as e:
             return f"❌ Error parsing input: {str(e)}"
