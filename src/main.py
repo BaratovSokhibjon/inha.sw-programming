@@ -30,6 +30,72 @@ def check_quit(user_input):
     else:
         return False
 
+
+def print_steps(paths_data):
+    distance_m = paths_data["paths"][0]["distance"]
+    duration_ms = paths_data["paths"][0]["time"]
+
+    miles = distance_m / 1000 / 1.61
+    km = distance_m / 1000
+
+    sec = int(duration_ms / 1000 % 60)
+    minutes = int(duration_ms / 1000 / 60 % 60)
+    hours = int(duration_ms / 1000 / 60 / 60)
+
+    print("📏 Distance Traveled: {:.1f} miles / {:.1f} km".format(miles, km))
+    print("⏱️ Trip Duration: {:02d}:{:02d}:{:02d}".format(hours, minutes, sec))
+    print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+
+    # Generate and display AI route summary
+    try:
+        summary = gpt.generate_route_summary(paths_data, orig_loc[3], dest_loc[3], vehicle)
+        print("🤖 AI Route Summary:")
+        print(f"💬 {summary}")
+        print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+    except Exception as e:
+        print(f"⚠️ Couldn't generate route summary: {str(e)}")
+
+    for step in paths_data["paths"][0]["instructions"]:
+        path_text = step["text"]
+
+        # Choose the appropriate direction arrow based on the text
+        direction_arrow = "➡️"  # default is right
+        path_text_lower = path_text.lower()
+
+        if "left" in path_text_lower:
+            direction_arrow = "⬅️"
+        elif "right" in path_text_lower:
+            direction_arrow = "➡️"
+        elif "straight" in path_text_lower or "continue" in path_text_lower:
+            direction_arrow = "⬆️"
+        elif "u-turn" in path_text_lower or "turnaround" in path_text_lower:
+            direction_arrow = "🔄"
+        elif "arrive" in path_text_lower or "destination" in path_text_lower:
+            direction_arrow = "🏁"
+        elif "depart" in path_text_lower or "start" in path_text_lower:
+            direction_arrow = "🚩"
+        elif "roundabout" in path_text_lower or "rotary" in path_text_lower:
+            direction_arrow = "🔄"
+        elif "slight left" in path_text_lower:
+            direction_arrow = "↖️"
+        elif "slight right" in path_text_lower:
+            direction_arrow = "↗️"
+        elif "sharp left" in path_text_lower:
+            direction_arrow = "↩️"
+        elif "sharp right" in path_text_lower:
+            direction_arrow = "↪️"
+
+        if "distance" in step:
+            step_distance = step["distance"]
+            # Format distance in a more readable way
+            if step_distance < 100:
+                distance_str = f"{step_distance:.0f} m"
+            else:
+                distance_str = f"{step_distance / 1000:.1f} km / {step_distance / 1000 / 1.61:.1f} miles"
+            print(f"{direction_arrow}     {path_text} ({distance_str})")
+        else:
+            print(f"{direction_arrow}     {path_text}")
+
 while True:
     print("🚗 Vehicle profiles available on Graphhopper: 🚗")
     print("🚗 car, 🚲 bike, 🚶 foot, 🚌 public")
@@ -54,19 +120,13 @@ while True:
 
     print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
+    paths_status = 404
     if vehicle == "public":
         start_time = input("🏁 Please provide a start time (e.g. 1pm): ")
         if check_quit(start_time):
             break
-        gpt.route_public_transportation(loc1, loc2, start_time)
-        accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
-        if check_quit(accommodations_option):
-            break
-        if accommodations_option.startswith('y'):
-            accommodations = gpt.find_accommodations(loc2)
-            print("Here are accommodations in " + loc2 + ".")
-            print(accommodations)
-            print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+        paths_data = gpt.route_public_transportation(loc1, loc2, start_time)
+        paths_status = 200
 
     elif orig_status == 200 and dest_status == 200:
         op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
@@ -89,84 +149,25 @@ while True:
         )
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
-        if paths_status == 200:
-            distance_m = paths_data["paths"][0]["distance"]
-            duration_ms = paths_data["paths"][0]["time"]
+    if paths_status == 200:
+        print_steps(paths_data)
+        print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
-            miles = distance_m / 1000 / 1.61
-            km = distance_m / 1000
-
-            sec = int(duration_ms / 1000 % 60)
-            minutes = int(duration_ms / 1000 / 60 % 60)
-            hours = int(duration_ms / 1000 / 60 / 60)
-
-            print("📏 Distance Traveled: {:.1f} miles / {:.1f} km".format(miles, km))
-            print("⏱️ Trip Duration: {:02d}:{:02d}:{:02d}".format(hours, minutes, sec))
+        voice_option = input("Would you like voice-like instructions? (y/n): ").lower()
+        if check_quit(voice_option):
+            break
+        if voice_option.startswith('y'):
+            natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
+            voice_navigation(natural_instructions)
             print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
-            # Generate and display AI route summary
-            try:
-                summary = gpt.generate_route_summary(paths_data, orig_loc[3], dest_loc[3], vehicle)
-                print("🤖 AI Route Summary:")
-                print(f"💬 {summary}")
-                print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
-            except Exception as e:
-                print(f"⚠️ Couldn't generate route summary: {str(e)}")
-
-            for step in paths_data["paths"][0]["instructions"]:
-                path_text = step["text"]
-                step_distance = step["distance"]
-                # Choose the appropriate direction arrow based on the text
-                direction_arrow = "➡️"  # default is right
-                path_text_lower = path_text.lower()
-
-                if "left" in path_text_lower:
-                    direction_arrow = "⬅️"
-                elif "right" in path_text_lower:
-                    direction_arrow = "➡️"
-                elif "straight" in path_text_lower or "continue" in path_text_lower:
-                    direction_arrow = "⬆️"
-                elif "u-turn" in path_text_lower or "turnaround" in path_text_lower:
-                    direction_arrow = "🔄"
-                elif "arrive" in path_text_lower or "destination" in path_text_lower:
-                    direction_arrow = "🏁"
-                elif "depart" in path_text_lower or "start" in path_text_lower:
-                    direction_arrow = "🚩"
-                elif "roundabout" in path_text_lower or "rotary" in path_text_lower:
-                    direction_arrow = "🔄"
-                elif "slight left" in path_text_lower:
-                    direction_arrow = "↖️"
-                elif "slight right" in path_text_lower:
-                    direction_arrow = "↗️"
-                elif "sharp left" in path_text_lower:
-                    direction_arrow = "↩️"
-                elif "sharp right" in path_text_lower:
-                    direction_arrow = "↪️"
-
-                # Format distance in a more readable way
-                if step_distance < 100:
-                    distance_str = f"{step_distance:.0f} m"
-                else:
-                    distance_str = f"{step_distance/1000:.1f} km / {step_distance/1000/1.61:.1f} miles"
-
-                print(f"{direction_arrow}     {path_text} ({distance_str})")
+        accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
+        if check_quit(accommodations_option):
+            break
+        if accommodations_option.startswith('y'):
+            accommodations = gpt.find_accommodations(loc2)
+            print("Here are accommodations in " + loc2 + ".")
+            print(accommodations)
             print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
-
-            voice_option = input("Would you like voice-like instructions? (y/n): ").lower()
-            if check_quit(voice_option):
-                break
-            if voice_option.startswith('y'):
-                natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
-                voice_navigation(natural_instructions)
-                print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
-
-            accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
-            if check_quit(accommodations_option):
-                break
-            if accommodations_option.startswith('y'):
-                accommodations = gpt.find_accommodations(loc2)
-                print("Here are accommodations in " + loc2 + ".")
-                print(accommodations)
-                print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
-        else:
-            print("❌ Error message: " + paths_data.get("message", "Unknown error"))
+    else:
+        print("❌ Error message: " + paths_data.get("message", "Unknown error"))

@@ -53,7 +53,9 @@ class Genai:
             return f"❌ Error parsing input: {str(e)}"
 
     def find_accommodations(self, destination):
-        prompt = f"Can you recommend me any acomondation in Pinkafeld, no need for any specification! Just list me 3 accomodations in '{destination}' without any context in this format: Accomondation1, Accomondation2, Accomondation3"
+        prompt = (f"Can you recommend me any acomondation in Pinkafeld, no need for any specification! Just list me 3 "
+                  f"accomodations in '{destination}' without any context in this format: Accomondation1, "
+                  f"Accomondation2, Accomondation3")
         try:
             response = self.model.generate_content(prompt)
             return response.text
@@ -61,20 +63,25 @@ class Genai:
             return f"❌ Error parsing input: {str(e)}"
 
     def route_public_transportation(self, start_location, end_location, start_time):
-        prompt = f"Please tell me instructions to get from '{start_location}' to '{end_location}' starting at '{start_time}' only using Public Transportation! - please anwere me in a proper json fromat having this points: estimated time, starting location, end location, route"
+        with open('utils/publicTrans.json') as f:
+            example_json = json.load(f)
+            print(example_json)
+            prompt = (f"Please tell me instructions to get from '{start_location}' to '{end_location}' starting at "
+                      f"'{start_time}' only using Public Transportation! - please answer me in a proper json format having "
+                      f"this points: time, distance, starting "
+                      f"location, end location, paths! For distance just give me the number in meter and for time ms! "
+                      f"It should look like this:"
+                      f"'{example_json}'")
         try:
             response = self.model.generate_content(prompt)
             cleaned = bytes(response.text, "utf-8").decode("unicode_escape")
             if cleaned.startswith('"') and cleaned.endswith('"'):
                 cleaned = cleaned[1:-1]
-                print(cleaned)
 
             if cleaned.startswith("```json") and cleaned.endswith('```'):
                 cleaned = cleaned[7:-3]
-                print(cleaned)
+                
             parsed_json = json.loads(cleaned)
-            print(parsed_json["estimated_time"])
-            print(parsed_json["route"][0]["instruction"])
-            return response.text
+            return parsed_json
         except Exception as e:
             return f"❌ Error parsing input: {str(e)}"
