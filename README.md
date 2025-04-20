@@ -18,7 +18,6 @@
     - Lukas Mathae(12244592)
     - Khudaynazarov Sunnatbek (12214745)
 
-
 ## Features
 
 ### Accommodation
