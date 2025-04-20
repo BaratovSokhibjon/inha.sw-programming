@@ -11,6 +11,12 @@ dotenv.load_dotenv()
 graphhopper_api_key = os.getenv("GH_API_KEY")
 genai_api_key = os.getenv("GEMINI_API_KEY")
 
+def check_quit(input):
+    if input == "quit" or input == "q":
+        return True
+    else:
+        return False
+
 # Validate API keys
 if not graphhopper_api_key:
     print("❌ Error: Graphhopper API key (GH_API_KEY) is not set.")
@@ -30,19 +36,19 @@ while True:
     profile = ["car", "bike", "foot"]
     vehicle = input("🔍 Enter a vehicle profile from the list above: ").strip().lower()
 
-    if vehicle in ["quit", "q"]:
+    if check_quit(vehicle):
         break
     elif vehicle not in profile:
         vehicle = "car"
         print("⚠️ No valid vehicle profile was entered. Using the car profile.")
 
     loc1 = input("🏁 Starting Location: ")
-    if loc1 == "quit" or loc1 == "q":
+    if check_quit(loc1):
         break
     orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
 
     loc2 = input("🏁 Destination: ")
-    if loc2 == "quit" or loc2 == "q":
+    if check_quit(loc2):
         break
     dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
 
@@ -133,12 +139,16 @@ while True:
             print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
             voice_option = input("Would you like voice-like instructions? (y/n): ").lower()
+            if check_quit(voice_option):
+                break
             if voice_option.startswith('y'):
                 natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
                 voice_navigation(natural_instructions)
                 print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
             accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
+            if check_quit(accommodations_option):
+                break
             if accommodations_option.startswith('y'):
                 accommodations = gpt.find_accommodations(loc2)
                 print("Here are accommodations in " + loc2 + ".")
