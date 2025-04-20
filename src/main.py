@@ -127,7 +127,7 @@ while True:
             start_time = input("🏁 Please provide a start time (e.g. 1pm): ")
             if check_quit(start_time):
                 break
-            paths_data, paths_status = gpt.route_public_transportation(loc1, loc2, start_time)
+            paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
         except Exception as e:
             print(f"⚠️ Couldn't generate route summary: {str(e)}")
 
