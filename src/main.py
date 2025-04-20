@@ -165,12 +165,12 @@ while True:
             voice_navigation(natural_instructions)
 
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
-        accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
+        accommodations_option = input("Would you like to find accommodation in " + dest_loc + "? (y/n): ").lower()
         if check_quit(accommodations_option):
             break
         if accommodations_option.startswith('y'):
-            accommodations = gpt.find_accommodations(loc2)
-            print("Here are accommodations in " + loc2 + ".")
+            accommodations = gpt.find_accommodations(dest_loc)
+            print("Here are accommodations in " + dest_loc + ".")
             print(accommodations)
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
     else:

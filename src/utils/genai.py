@@ -59,7 +59,7 @@ class Genai:
 
     def find_accommodations(self, destination):
         prompt = (f"Can you recommend me any acomondation in '{destination}', no need for any specification! Just list me 3 "
-                  f"accomodations in '{destination}' without any context in this format: Accomondation1, "
+                  f"accomodations in '{destination}' without any context in English and in this format: Accomondation1, "
                   f"Accomondation2, Accomondation3")
         try:
             response = self.model.generate_content(prompt)
