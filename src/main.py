@@ -11,12 +11,6 @@ dotenv.load_dotenv()
 graphhopper_api_key = os.getenv("GH_API_KEY")
 genai_api_key = os.getenv("GEMINI_API_KEY")
 
-def check_quit(user_input):
-    if user_input == "quit" or user_input == "q":
-        return True
-    else:
-        return False
-
 # Validate API keys
 if not graphhopper_api_key:
     print("❌ Error: Graphhopper API key (GH_API_KEY) is not set.")
@@ -30,10 +24,16 @@ genai_model = "gemini-2.0-flash"
 geo = Geocoding(graphhopper_api_key)
 gpt = Genai(genai_api_key, genai_model)
 
+def check_quit(user_input):
+    if user_input == "quit" or user_input == "q":
+        return True
+    else:
+        return False
+
 while True:
     print("🚗 Vehicle profiles available on Graphhopper: 🚗")
-    print("🚗 car, 🚲 bike, 🚶 foot")
-    profile = ["car", "bike", "foot"]
+    print("🚗 car, 🚲 bike, 🚶 foot, 🚌 public")
+    profile = ["car", "bike", "foot", "public"]
     vehicle = input("🔍 Enter a vehicle profile from the list above: ").strip().lower()
 
     if check_quit(vehicle):
@@ -54,7 +54,21 @@ while True:
 
     print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
 
-    if orig_status == 200 and dest_status == 200:
+    if vehicle == "public":
+        start_time = input("🏁 Please provide a start time (e.g. 1pm): ")
+        if check_quit(start_time):
+            break
+        gpt.route_public_transportation(loc1, loc2, start_time)
+        accommodations_option = input("Would you like to find accommodation in " + loc2 + "? (y/n): ").lower()
+        if check_quit(accommodations_option):
+            break
+        if accommodations_option.startswith('y'):
+            accommodations = gpt.find_accommodations(loc2)
+            print("Here are accommodations in " + loc2 + ".")
+            print(accommodations)
+            print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
+
+    elif orig_status == 200 and dest_status == 200:
         op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
         dp = "&point=" + str(dest_lat) + "%2C" + str(dest_lng)
         paths_url = route_url + urllib.parse.urlencode(
