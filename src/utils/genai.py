@@ -65,7 +65,6 @@ class Genai:
     def route_public_transportation(self, start_location, end_location, start_time):
         with open('utils/publicTrans.json') as f:
             example_json = json.load(f)
-            print(example_json)
             prompt = (f"Please tell me instructions to get from '{start_location}' to '{end_location}' starting at "
                       f"'{start_time}' only using Public Transportation! - please answer me in a proper json format having "
                       f"this points: time, distance, starting "
@@ -80,7 +79,7 @@ class Genai:
 
             if cleaned.startswith("```json") and cleaned.endswith('```'):
                 cleaned = cleaned[7:-3]
-                
+
             parsed_json = json.loads(cleaned)
             return parsed_json
         except Exception as e:
