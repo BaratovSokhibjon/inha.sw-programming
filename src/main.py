@@ -11,8 +11,8 @@ dotenv.load_dotenv()
 graphhopper_api_key = os.getenv("GH_API_KEY")
 genai_api_key = os.getenv("GEMINI_API_KEY")
 
-def check_quit(input):
-    if input == "quit" or input == "q":
+def check_quit(user_input):
+    if user_input == "quit" or user_input == "q":
         return True
     else:
         return False
