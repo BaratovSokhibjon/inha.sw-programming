@@ -3,6 +3,7 @@ import urllib
 import os
 import dotenv
 from utils import *
+import math
 
 route_url = "https://graphhopper.com/api/1/route?"
 
@@ -33,32 +34,34 @@ class OpenMeteo:
     def __init__(self):
         self.base_url = "https://api.open-meteo.com/v1/forecast"
 
-    def get_weather(self, latitude, longitude, hours=0):
-        params = {
-            "latitude": latitude,
-            "longitude": longitude,
-            "hourly": "temperature_2m,precipitation,wind_speed_10m,weathercode",
-            "current_weather": "true",
-            "forecast_days": 1,
-            "timezone": "auto"
-        }
-        response = requests.get(self.base_url, params=params)
-        if response.status_code == 200:
-            data = response.json()
-            current = data["current_weather"]
-            hourly = data["hourly"]
+    def get_weather(self, lat, lng, hours=12):
+        url = (
+            f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}"
+            f"&hourly=temperature_2m,weathercode,wind_speed_10m&timezone=auto"
+        )
+        response = requests.get(url)
+        data = response.json()
+        if (hours > 168):
+            print("The travel duration exceeds the available forecast range.\n Weather conditions will be shown for up to the next 168 hours only.")
 
-            summary = f"🌡️ Current: {current['temperature']}°C, {self.decode_weather(current['weathercode'])}, wind {current['windspeed']} km/h\n"
-            forecast_summary = []
-            for i in range(hours):
-                forecast_summary.append(
-                    f"{hourly['time'][i]}: {hourly['temperature_2m'][i]}°C, {self.decode_weather(hourly['weathercode'][i])}, wind {hourly['wind_speed_10m'][i]} km/h"
-                )
-            forecast_text = "\n".join(forecast_summary)
-            
-            return summary, forecast_text
-        else:
-            return "❌ Error fetching data", ""
+        hourly = data.get("hourly", {})
+        available_hours = len(hourly.get("time", []))
+        #print(f" Available forecast hours: {available_hours}")  # Debug
+
+        hours = min(hours, available_hours)  # cap to prevent out-of-range
+
+        try:
+            forecast = [
+                f"{hourly['time'][i]}: {hourly['temperature_2m'][i]}°C, "
+                f"{self.decode_weather(hourly['weathercode'][i])}, "
+                f"wind {hourly['wind_speed_10m'][i]} km/h"
+                for i in range(hours)
+            ]
+            return "\n".join(forecast)
+        except Exception as e:
+            return f"❌ Error parsing weather data: {str(e)}"
+
+
 
     def decode_weather(self, code):
         # Simple mapping for extreme conditions
@@ -200,17 +203,19 @@ while True:
 
     if paths_status == 200 and paths_data is not None:
         print_steps(paths_data, orig_loc, dest_loc)
-
+        
+        travel_time = paths_data["paths"][0]["time"]
+        travel_time_in_hour = float(travel_time) /1000/ 60/ 60
 
 
 
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
-        print("Weather Checkpoint")
-        weather = OpenMeteo()
-        curr_weather = weather.get_weather(orig_lat, orig_lng, hours= 0)
-        forecast = weather.get_weather(dest_lat, dest_lng, hours=3)
 
-        weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, "3 hours", curr_weather, forecast)
+        weather = OpenMeteo()
+        curr_weather = weather.get_weather(orig_lat, orig_lng, hours= 1)
+        forecast = weather.get_weather(dest_lat, dest_lng, hours=math.ceil(travel_time_in_hour))
+
+        weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
         print("🌦️ Weather Advisory:")
         print(weather_advisory)
 

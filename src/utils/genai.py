@@ -91,12 +91,14 @@ class Genai:
             return f"❌ Error parsing input: {str(e)}"
         
     def check_weather_conditions(self, departure, destination, travel_time, current_weather, forecast_weather):
+        print(f"Current weather : {current_weather} \n Forecast weather :{forecast_weather}\n")
         prompt = (
             f"I'm planning a trip from {departure} to {destination}.\n"
             f"Current weather in {departure} is {current_weather}.\n"
-            f"Forecast over the next {travel_time} in {destination} is {forecast_weather}.\n"
+            f"Forecast after the next {travel_time} in {destination} is {forecast_weather}.\n"
             f"Are there any extreme weather conditions that might affect the trip?\n "
             f"Do I need any preparation to accomadate these weather situations? \n"
+            f"Don't repeat my questions. Give me a summary and a comparison"
         )
         try:
             response = self.model.generate_content(prompt)
