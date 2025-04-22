@@ -8,8 +8,11 @@ This is a **mid-term task** application for **Software Engineering** class.
 
 - GraphHopper API
 - Gemini API
+- Open Meteo API
 - Route generation
 - Voice directions
+- Weather Prediction
+- Finding Accomadation 
 - and more ...
 
 ---
@@ -71,3 +74,4 @@ git clone git@github.com:BaratovSokhibjon/inha.sw-programming.git && \
 
 - [Graphhopper API](https://docs.graphhopper.com/)
 - [Gemini API](https://ai.google.dev/gemini-api/docs)
+- [Open Meteo API](https://open-meteo.com/en/docs )
