@@ -24,13 +24,22 @@ genai_model = "gemini-2.0-flash"
 geo = Geocoding(graphhopper_api_key)
 gpt = Genai(genai_api_key, genai_model)
 
-
-import requests
-import os
-
-import requests
-
 class OpenMeteo:
+    """
+    Provides functionality to interact with the Open-Meteo weather API.
+
+    This class allows users to fetch weather forecasts for a specific location and decode weather codes into
+    human-readable descriptions. It uses the Open-Meteo API to fetch hourly weather data, including temperature,
+    weather codes, and wind speed.
+
+    Attributes:
+        base_url (str): The base URL for the Open-Meteo API.
+
+    Methods:
+        __init__: Initializes the OpenMeteo instance and sets the base API URL.
+        get_weather: Fetches and formats a weather forecast for a given location and time range.
+        decode_weather: Decodes numeric weather codes into human-readable weather descriptions.
+    """
     def __init__(self):
         self.base_url = "https://api.open-meteo.com/v1/forecast"
 
@@ -76,12 +85,47 @@ class OpenMeteo:
 
 
 def check_quit(user_input):
+    """
+    Determines if the user input indicates a quit command.
+
+    This function evaluates whether the provided input matches either of the
+    designated commands for quitting: "quit" or "q". It is case-sensitive and
+    intends to provide a simple mechanism to check for termination instructions.
+
+    Parameters:
+    user_input: str
+        The input string provided by the user to be evaluated.
+
+    Returns:
+    bool
+        True if the input matches "quit" or "q", otherwise False.
+    """
     if user_input == "quit" or user_input == "q":
         return True
     else:
         return False
 
 def print_steps(data, orig, dest):
+    """
+    Prints the route steps, including distance, duration, and individual step instructions with corresponding symbols.
+
+    This function processes the given route data and computes both the overall trip summary
+    and detailed step-by-step instructions. The overall summary includes the trip distance in
+    miles and kilometers and the duration in hours, minutes, and seconds. For each step in
+    the instruction set, the function determines the corresponding direction symbol and prints
+    the instruction along with the step distance in a readable format. Additionally, attempts
+    are made to generate an AI-generated summary of the route using a separate function.
+
+    Parameters:
+        data (dict): The route data containing paths and instructions. It includes information
+            about the overall trip such as distance and duration, as well as detailed step
+            instructions.
+        orig (str): The original starting location of the trip.
+        dest (str): The destination for the trip.
+
+    Raises:
+        Exception: If an error occurs while generating the AI-driven route summary.
+    """
     distance_m = data["paths"][0]["distance"]
     duration_ms = data["paths"][0]["time"]
 
@@ -203,7 +247,7 @@ while True:
 
     if paths_status == 200 and paths_data is not None:
         print_steps(paths_data, orig_loc, dest_loc)
-        
+
         travel_time = paths_data["paths"][0]["time"]
         travel_time_in_hour = float(travel_time) /1000/ 60/ 60
 
@@ -218,10 +262,6 @@ while True:
         weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
         print("🌦️ Weather Advisory:")
         print(weather_advisory)
-
-
-
-
 
 
         print("🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹🔸🔹")
