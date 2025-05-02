@@ -1,15 +1,9 @@
 from gtts import gTTS
-import os
-import hashlib
 import pygame
 import time
 
 def clean_instruction(text):
     return text.replace("**", "").strip()
-
-def text_to_filename(text):
-    """Generate a consistent filename hash for a given instruction."""
-    return "cache_" + hashlib.md5(text.encode()).hexdigest() + ".mp3"
 
 def play_audio(filename):
     pygame.mixer.init()
@@ -25,11 +19,8 @@ def voice_navigation(instructions):
 
         clean_text = clean_instruction(instruction)
         # print(f"🎙️ Speaking: {clean_text}")
-        filename = text_to_filename(clean_text)
 
-       
-        if not os.path.exists(filename):
-            tts = gTTS(text=clean_text, lang='en')
-            tts.save(filename)
+        tts = gTTS(text=clean_text, lang='en')
+        tts.save("temp.mp3")
 
-        play_audio(filename)
+        play_audio("temp.mp3")
