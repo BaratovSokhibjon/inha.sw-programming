@@ -84,13 +84,47 @@ class OpenMeteo:
 
 
 def check_quit(user_input):
+    """
+    Determines if the user input indicates a quit command.
+
+    This function evaluates whether the provided input matches either of the
+    designated commands for quitting: "quit" or "q". It is case-sensitive and
+    intends to provide a simple mechanism to check for termination instructions.
+
+    Parameters:
+    user_input: str
+        The input string provided by the user to be evaluated.
+
+    Returns:
+    bool
+        True if the input matches "quit" or "q", otherwise False.
+    """
     if user_input == "quit" or user_input == "q":
         return True
     else:
         return False
 
-
 def print_steps(data, orig, dest):
+    """
+    Prints the route steps, including distance, duration, and individual step instructions with corresponding symbols.
+
+    This function processes the given route data and computes both the overall trip summary
+    and detailed step-by-step instructions. The overall summary includes the trip distance in
+    miles and kilometers and the duration in hours, minutes, and seconds. For each step in
+    the instruction set, the function determines the corresponding direction symbol and prints
+    the instruction along with the step distance in a readable format. Additionally, attempts
+    are made to generate an AI-generated summary of the route using a separate function.
+
+    Parameters:
+        data (dict): The route data containing paths and instructions. It includes information
+            about the overall trip such as distance and duration, as well as detailed step
+            instructions.
+        orig (str): The original starting location of the trip.
+        dest (str): The destination for the trip.
+
+    Raises:
+        Exception: If an error occurs while generating the AI-driven route summary.
+    """
     distance_m = data["paths"][0]["distance"]
     duration_ms = data["paths"][0]["time"]
 
@@ -105,7 +139,6 @@ def print_steps(data, orig, dest):
     console.print("⏱️ Trip Duration: {:02d}:{:02d}:{:02d}".format(hours, minutes, sec),style="answer")
     console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
 
-    # Generate and display AI route summary
     try:
         summary = gpt.generate_route_summary(paths_data, orig, dest, vehicle)
         console.print("🤖 AI Route Summary:", style ="deco")
@@ -116,13 +149,13 @@ def print_steps(data, orig, dest):
     except Exception as e:
         console.print(f"⚠️ Couldn't generate route summary: {str(e)}",style="error")
 
-    for step in paths_data["paths"][0]["instructions"]:
+    for step in data["paths"][0]["instructions"]:
         path_text = step["text"]
         time.sleep(0.1)
         # Choose the appropriate direction arrow based on the text
         direction_arrow = "➡️"  # default is right
-        path_text_lower = path_text.lower()
 
+        path_text_lower = path_text.lower()
         if "left" in path_text_lower:
             direction_arrow = "⬅️"
         elif "right" in path_text_lower:
@@ -156,6 +189,8 @@ def print_steps(data, orig, dest):
             console.print(f"{direction_arrow}     {path_text} ({distance_str})",style = "answer")
         else:
             console.print(f"{direction_arrow}     {path_text}",style="answer")
+
+
 
 while True:
     
@@ -193,7 +228,6 @@ while True:
             paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
         except Exception as e:
             console.print(f"⚠️ Couldn't generate route summary: {str(e)}", style="error")
-
 
     elif orig_status == 200 and dest_status == 200:
         op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)

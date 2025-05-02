@@ -14,7 +14,27 @@ class Geocoding:
         console.print(f"Initialized Geocoding with API key: {self.ghr_api_key}", style = "answer")
 
     def geocoding(self, location):
+        """
+        Geocodes a given location to retrieve its latitude, longitude, and detailed
+        description using the GraphHopper Geocoding API.
 
+        The method sends a request to the Geocoding API with the provided location,
+        parses the API response, and extracts relevant information such as latitude,
+        longitude, name, and associated geographic details (country, state).
+        If the API returns an error or no hits are found, default fallback
+        values are used.
+
+        Parameters:
+        location (str): The name of the location to geocode. Must not be an empty string.
+
+        Returns:
+        tuple: A tuple containing the API response status code (int), latitude (float or
+        str in case of failure), longitude (float or str in case of failure),
+        and a detailed location description (str).
+
+        Raises:
+        None
+        """
         while location == "":
             location = console.input("[question]Enter the location again: [/question]")
 
