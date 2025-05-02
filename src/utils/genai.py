@@ -186,6 +186,30 @@ class Genai:
             return f"❌ Error parsing input: {str(e)}"
         
     def check_weather_conditions(self, departure, destination, travel_time, current_weather, forecast_weather):
+        """
+        Analyzes weather conditions for a trip by comparing current weather in the departure
+        location and the forecasted weather at the destination and generates a summary.
+
+        Parameters:
+            departure: str
+                The starting location of the trip.
+            destination: str
+                The target location of the trip.
+            travel_time: str
+                The estimated duration to reach the destination.
+            current_weather: str
+                The current weather at the departure location.
+            forecast_weather: str
+                The forecasted weather at the destination after the specified travel time.
+
+        Raises:
+            Exception
+                Returns an error message if `model.generate_content` fails.
+
+        Returns:
+            str
+                A summary and comparison of weather conditions, or an error message upon failure.
+        """
         # print(f"Current weather : {current_weather} \n Forecast weather :{forecast_weather}\n")  # debug
         prompt = (
             f"I'm planning a trip from {departure} to {destination}.\n"

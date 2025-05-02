@@ -39,6 +39,21 @@ gpt = Genai(genai_api_key, genai_model)
 
 
 class OpenMeteo:
+    """
+    Provides functionality to interact with the Open-Meteo weather API.
+
+    This class allows users to fetch weather forecasts for a specific location and decode weather codes into
+    human-readable descriptions. It uses the Open-Meteo API to fetch hourly weather data, including temperature,
+    weather codes, and wind speed.
+
+    Attributes:
+        base_url (str): The base URL for the Open-Meteo API.
+
+    Methods:
+        __init__: Initializes the OpenMeteo instance and sets the base API URL.
+        get_weather: Fetches and formats a weather forecast for a given location and time range.
+        decode_weather: Decodes numeric weather codes into human-readable weather descriptions.
+    """
     
     def __init__(self):
         self.base_url = "https://api.open-meteo.com/v1/forecast"
