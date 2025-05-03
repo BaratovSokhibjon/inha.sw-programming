@@ -17,7 +17,7 @@ import sys
 import questionary
 
 from utils.gmaps import create_google_maps_link
-from utils.common import safe_confirm, safe_input, signal_handler, check_quit, open_url_in_browser, custom_style
+from utils.common import safe_confirm, safe_input, signal_handler, check_quit, open_url_in_browser, custom_style, suggest_transport
 from utils.hotel import find_real_accommodations
 from utils import create_calendar_event
 from utils.common import exit_event, check_exit, reset_exit
@@ -309,7 +309,7 @@ def main():
                     if check_exit():
                         break
 
-                api_info = f"🛣️ Routing API Status: {paths_status}\n🔗 API URL: {paths_url}"
+                # api_info = f"🛣️ Routing API Status: {paths_status}\n🔗 API URL: {paths_url}"
                 # console.print(Panel(api_info,
                 #                    title="API Details",
                 #                    border_style="panel.border",
@@ -320,6 +320,19 @@ def main():
                 travel_time = paths_data["paths"][0]["time"]
                 travel_time_in_hour = float(travel_time) / 1000 / 60 / 60
                 distance_km = paths_data["paths"][0]["distance"] / 1000
+
+                suggestion = suggest_transport(vehicle, distance_km)
+                if suggestion:
+                    console.print(Panel(suggestion,
+                                    title="🚦 Transport Suggestion",
+                                    border_style="highlight",
+                                    box=box.ROUNDED))
+
+                    # Ask if user wants to change transport mode
+                    if safe_confirm("Would you like to change your transport mode?"):
+                        vehicle = select_vehicle_profile()
+                        if check_quit(vehicle) or check_exit():
+                            break
 
                 # Ask about calendar integration before showing route details
                 if safe_confirm("Would you like to add this trip to your Google Calendar?"):

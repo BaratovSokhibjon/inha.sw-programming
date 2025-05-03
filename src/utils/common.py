@@ -114,3 +114,44 @@ def safe_confirm(prompt):
     except KeyboardInterrupt:
         signal_handler(signal.SIGINT, None)
         return False
+
+def suggest_transport(mode: str, distance_km: float) -> str:
+    """
+    Return a warning string if the distance is too long for walking or biking,
+    or suggest alternatives based on the distance range.
+    mode: one of "car", "bike", "foot"/"walk", "public", or "flight"
+    distance_km: the total trip distance in kilometers
+    """
+    # Normalize GraphHopper's "foot" to our "walk"
+    if mode == "foot":
+        key = "walk"
+    else:
+        key = mode
+
+    if key == "walk":
+        if distance_km > 10:
+            return f"⚠️ {distance_km:.1f} km is a long walk! Maybe try a bike 🚲 or car 🚗 instead?"
+        elif distance_km > 5:
+            return f"ℹ️ {distance_km:.1f} km is a moderate walk. Ensure you're prepared!"
+    elif key == "bike":
+        if distance_km > 30:
+            return f"⚠️ {distance_km:.1f} km is a long trip for a bike! Maybe use a car 🚗 or train 🚆 instead?"
+        elif distance_km > 15:
+            return f"ℹ️ {distance_km:.1f} km is a moderate bike ride. Stay hydrated!"
+    elif key == "car":
+        if distance_km < 2:
+            return f"ℹ️ {distance_km:.1f} km is a short trip. Consider walking 🚶 or biking 🚲 instead!"
+        elif distance_km > 1000:
+            return f"⚠️ {distance_km:.1f} km is a very long trip for a car. Consider taking a flight ✈️ instead!"
+    elif key == "public":
+        if distance_km < 1:
+            return f"ℹ️ {distance_km:.1f} km is very short. Walking 🚶 might be a better option!"
+        elif distance_km > 500:
+            return f"⚠️ {distance_km:.1f} km is a long trip. Consider taking a flight ✈️ for faster travel!"
+    elif key == "flight":
+        if distance_km < 200:
+            return f"ℹ️ {distance_km:.1f} km is a short distance for a flight. Consider a car 🚗 or train 🚆 instead!"
+        elif distance_km > 15000:
+            return f"⚠️ {distance_km:.1f} km is an extremely long trip. Ensure you plan for layovers and rest!"
+
+    return ""
