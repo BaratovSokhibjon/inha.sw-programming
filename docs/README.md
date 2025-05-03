@@ -69,7 +69,7 @@ git clone git@github.com:BaratovSokhibjon/inha.sw-programming.git && \
 ### 3. 🚀 Start the application
 
 ```bash
-  python3 -m src.main.py
+  python3 src/main.py
 ```
 
 
@@ -78,3 +78,4 @@ git clone git@github.com:BaratovSokhibjon/inha.sw-programming.git && \
 - [Graphhopper API](https://docs.graphhopper.com/)
 - [Gemini API](https://ai.google.dev/gemini-api/docs)
 - [Open Meteo API](https://open-meteo.com/en/docs )
+- [Google Cloud Console](https://cloud.google.com/)
