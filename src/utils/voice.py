@@ -1,8 +1,20 @@
-import pyttsx3
+from gtts import gTTS
+import pygame
+import time
+from io import BytesIO
 
-engine = pyttsx3.init()
 
-def voice_navigation(natural_instructions):
+def clean_instruction(text):
+    return text.replace("**", "").strip()
+
+def play_audio(filename):
+    pygame.mixer.init()
+    pygame.mixer.music.load(filename)
+    pygame.mixer.music.play()
+    while pygame.mixer.music.get_busy():
+        time.sleep(0.1)
+
+def voice_navigation(instructions):
     """
     Provides functionality to navigate using voice guidance based on natural language
     instructions provided as input.
@@ -15,12 +27,21 @@ def voice_navigation(natural_instructions):
     ----------
     natural_instructions : list of str
         A list of natural language instructions to be spoken aloud.
-
     """
-    print("\n🔊 Voice Navigation:")
-    for instruction in natural_instructions:
-        if instruction.strip():
-            print(f"🎙️ Speaking: {instruction.strip()}")
-            engine.say(instruction.strip())
-            engine.runAndWait()
-    engine.stop() # Properly stop the engine
+    for instruction in instructions:
+        if not instruction.strip():
+            continue
+
+        clean_text = clean_instruction(instruction)
+        # print(f"🎙️ Speaking: {clean_text}")
+
+        tts = gTTS(text=clean_text, lang='en')
+        audio_data = BytesIO()
+        tts.write_to_fp(audio_data)
+        audio_data.seek(0)
+
+        pygame.mixer.init()
+        pygame.mixer.music.load(audio_data, "mp3")
+        pygame.mixer.music.play()
+        while pygame.mixer.music.get_busy():
+            time.sleep(0.1)

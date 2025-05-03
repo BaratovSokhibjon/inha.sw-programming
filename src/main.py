@@ -54,7 +54,7 @@ class OpenMeteo:
         get_weather: Fetches and formats a weather forecast for a given location and time range.
         decode_weather: Decodes numeric weather codes into human-readable weather descriptions.
     """
-    
+
     def __init__(self):
         self.base_url = "https://api.open-meteo.com/v1/forecast"
 
@@ -83,7 +83,7 @@ class OpenMeteo:
             ]
             return "\n".join(forecast)
         except Exception as e:
-            console.print(f"❌ Error parsing weather data: {str(e)}",style = "error") 
+            console.print(f"❌ Error parsing weather data: {str(e)}",style = "error")
 
 
 
@@ -208,7 +208,7 @@ def print_steps(data, orig, dest):
 
 
 while True:
-    
+
     console.print("🚗 Vehicle profiles available on Graphhopper: 🚗", style = "question")
     console.print("🚗 car, 🚲 bike, 🚶 foot, 🚌 public",style = "question")
     profile = ["car", "bike", "foot", "public"]
@@ -259,10 +259,6 @@ while True:
         console.print(f"🔗 Routing API URL:\n{paths_url}",style="answer")
         console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
 
-        icon = "🚗" if vehicle == "car" else "🚲" if vehicle == "bike" else "🚶"
-        
-        
-
     if paths_status == 200 and paths_data is not None:
         travel_time = paths_data["paths"][0]["time"]
         travel_time_in_hour = float(travel_time) /1000/ 60/ 60
@@ -272,14 +268,14 @@ while True:
 
         weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
         console.print("🌦️ Weather Advisory:", style = "other")
-        
+
         for i in track(range(10), description=f"[deco]Chasing Clouds...[/deco]"):
             time.sleep(0.1)  # Simulate work being done
 
         console.print(weather_advisory, style="answer")
         console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
         console.print(
-            f"🧭 Directions from {orig_loc} to {dest_loc} by {icon} {vehicle}", style="answer"
+            f"🧭 Directions from {orig_loc} to {dest_loc} {vehicle}", style="answer"
         )
 
         print_steps(paths_data, orig_loc, dest_loc)
@@ -299,7 +295,7 @@ while True:
         if accommodations_option.startswith('y'):
             accommodations = gpt.find_accommodations(dest_loc)
             for i in track(range(10), description=f"[deco]Exploring hidden gems...[/deco]"):
-                time.sleep(0.1)  
+                time.sleep(0.1)
             console.print(f"Here are accommodations in {dest_loc}.",style= "answer")
             console.print(accommodations,style = "answer")
         console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
@@ -317,7 +313,7 @@ while True:
     table.add_column("Transportation", justify="right", style="deco")
 
     table.add_row(f"{loc1.title()}", f"{loc2.title()}", f"{formatted_time}", f"{vehicle.title()}")
-    
 
-    
+
+
     console.print(table)
