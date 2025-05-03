@@ -12,7 +12,10 @@ This is a **mid-term task** application for **Software Engineering** class.
 - Route generation
 - Voice directions
 - Weather Prediction
-- Finding Accomadation 
+- Finding Accomadation
+- Google Calendar integration
+- Google maps integration
+- Aesthetic UI
 - and more ...
 
 ---
@@ -53,20 +56,20 @@ cd ~/workspaces/projects
 
 ```sh
 git clone https://github.com/BaratovSokhibjon/inha.sw-programming && \
-    cd stack.redteam
+    cd inha.sw-programming
 ```
 
 **OPTION B.** Clone the repository (for **DEVELOPMENT**: git + ssh key):
 
 ```sh
 git clone git@github.com:BaratovSokhibjon/inha.sw-programming.git && \
-    cd stack.redteam
+    cd inha.sw-programming
 ```
 
 ### 3. 🚀 Start the application
 
 ```bash
-  python3 -m src.main.py
+  python3 src/main.py
 ```
 
 
@@ -75,3 +78,4 @@ git clone git@github.com:BaratovSokhibjon/inha.sw-programming.git && \
 - [Graphhopper API](https://docs.graphhopper.com/)
 - [Gemini API](https://ai.google.dev/gemini-api/docs)
 - [Open Meteo API](https://open-meteo.com/en/docs )
+- [Google Cloud Console](https://cloud.google.com/)
