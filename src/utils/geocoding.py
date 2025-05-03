@@ -11,7 +11,6 @@ console = Console(theme=dark)
 class Geocoding:
     def __init__(self, graphhopper_api_key: str):
         self.ghr_api_key = graphhopper_api_key
-        console.print(f"Initialized Geocoding with API key: {self.ghr_api_key}", style = "answer")
 
     def geocoding(self, location):
         """
@@ -62,7 +61,7 @@ class Geocoding:
                 new_loc = name
 
             console.print(
-                f"🌍 Geocoding API URL for {new_loc} (Location Type: {value})\n{url}", style = "answer"
+                f"🌍 Location Type: {value}\n{url}", style = "answer"
             )
         else:
             lat = "null"
@@ -70,5 +69,5 @@ class Geocoding:
             new_loc = location
             if json_status != 200:
                 console.print(f"❌ Error: {json_status}", style = "error")
-                console.print(f'❌ Geocode API status: {json_status} \nError message: {json_data["message"]}', style = "error") 
+                console.print(f'❌ Geocode API status: {json_status} \nError message: {json_data["message"]}', style = "error")
         return json_status, lat, lng, new_loc

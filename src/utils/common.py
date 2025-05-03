@@ -7,6 +7,8 @@ import signal
 import questionary
 from questionary import Style as QuestionaryStyle
 import sys
+import threading
+import os
 
 from .interface import dark
 console = Console(theme=dark)
@@ -19,6 +21,9 @@ custom_style = QuestionaryStyle([
     ('highlighted', 'fg:#f8bdc4 bold'),
     ('selected', 'fg:#568259'),
 ])
+
+# Global exit event
+exit_event = threading.Event()
 
 def open_url_in_browser(url):
     """Open a URL in the default web browser"""
@@ -41,19 +46,27 @@ def check_quit(user_input):
 
 def signal_handler(sig, frame):
     """Handle keyboard interrupts (Ctrl+C)"""
-    global exit_requested
-    exit_requested = True
     console.print("\n")
-    console.print(Panel("⚠️ Program stop requested. Exiting gracefully...",
+    console.print(Panel("⚠️ Program stop requested. Exiting...",
                         border_style="error",
                         box=box.ROUNDED))
-    sys.exit(0)
+    os._exit(0)  # Force immediate exit
+
+def check_exit():
+    """Check if exit has been requested"""
+    return exit_event.is_set()
+
+def reset_exit():
+    """Reset exit event - useful for new route planning"""
+    exit_event.clear()
 
 def safe_input(prompt, choices=None, default=None):
     """
-    Enhanced input function with arrow key support for choices
+    Enhanced input function with arrow key support for choices and exit checking
     """
     try:
+        if exit_event.is_set():
+            return None
         if choices:
             result = questionary.select(
                 prompt,
@@ -83,9 +96,11 @@ def safe_input(prompt, choices=None, default=None):
 
 def safe_confirm(prompt):
     """
-    Enhanced confirm dialog with arrow key support
+    Enhanced confirm dialog with arrow key support and exit checking
     """
     try:
+        if exit_event.is_set():
+            return False
         result = questionary.select(
             prompt,
             choices=["Yes", "No"],

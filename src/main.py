@@ -19,6 +19,8 @@ import questionary
 from utils.gmaps import create_google_maps_link
 from utils.common import safe_confirm, safe_input, signal_handler, check_quit, open_url_in_browser, custom_style
 from utils.hotel import find_real_accommodations
+from utils import create_calendar_event
+from utils.common import exit_event, check_exit, reset_exit
 
 # Theme setup
 from utils.interface import dark
@@ -67,7 +69,7 @@ def select_vehicle_profile():
     # Use questionary for horizontal selection
     selection = questionary.select(
         "Select transportation mode:",
-        choices=list(profiles.keys()),
+        choices=list(profiles),
         style=custom_style,
         qmark="",
         use_arrow_keys=True
@@ -199,28 +201,31 @@ def display_header():
     header_text.stylize("title")
     console.print(Panel(header_text, box=box.DOUBLE))
 
-def main():
-    """Main application flow with improved UI"""
-    global exit_requested
-    try:
+def should_offer_accommodation(distance_km):
+    """Determine if accommodation should be offered based on distance"""
+    return distance_km > 100  # Offer accommodation for trips over 100km
 
+def main():
+    """Main application flow with improved UI and exit handling"""
+    try:
         display_header()
 
-        while not exit_requested:
-            # Select vehicle profile with visual menu
+        while not check_exit():
+            reset_exit()  # Reset exit flag for new route
+
+            # All checks for exit_requested should now use check_exit()
             vehicle = select_vehicle_profile()
-            if check_quit(vehicle) or exit_requested:
+            if check_quit(vehicle) or check_exit():
                 break
 
-            # Get starting location
             loc1 = safe_input("\n🚩 Type in starting location:")
-            if loc1 is None or check_quit(loc1) or exit_requested:
+            if loc1 is None or check_quit(loc1) or check_exit():
                 break
 
-            # Show loading animation during geocoding
+            # Add exit checks after each operation
             with console.status("Finding location... \n", spinner="dots"):
                 orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
-                if exit_requested:
+                if check_exit():
                     break
 
             if orig_status != 200:
@@ -231,13 +236,13 @@ def main():
 
             # Get destination
             loc2 = safe_input("\n🏁 Type in starting location:")
-            if loc2 is None or check_quit(loc2) or exit_requested:
+            if loc2 is None or check_quit(loc2) or check_exit():
                 break
 
             # Show loading animation during geocoding
             with console.status("Finding location... \n", spinner="dots"):
                 dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
-                if exit_requested:
+                if check_exit():
                     break
 
             if dest_status != 200:
@@ -266,12 +271,12 @@ def main():
                         use_arrow_keys=True
                     ).ask()
 
-                    if start_time is None or check_quit(start_time) or exit_requested:
+                    if start_time is None or check_quit(start_time) or check_exit():
                         break
 
                     with console.status("[deco]Planning your public transit route...[/deco]", spinner="dots"):
                         paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
-                        if exit_requested:
+                        if check_exit():
                             break
 
                     # Create Google Maps link for public transit
@@ -301,7 +306,7 @@ def main():
                     response = requests.get(paths_url)
                     paths_status = response.status_code
                     paths_data = response.json()
-                    if exit_requested:
+                    if check_exit():
                         break
 
                 api_info = f"🛣️ Routing API Status: {paths_status}\n🔗 API URL: {paths_url}"
@@ -311,16 +316,71 @@ def main():
                 #                    box=box.ROUNDED))
 
             # Process and display route if data is available
-            if paths_status == 200 and paths_data is not None and not exit_requested:
+            if paths_status == 200 and paths_data is not None and not check_exit():
                 travel_time = paths_data["paths"][0]["time"]
                 travel_time_in_hour = float(travel_time) / 1000 / 60 / 60
+                distance_km = paths_data["paths"][0]["distance"] / 1000
+
+                # Ask about calendar integration before showing route details
+                if safe_confirm("Would you like to add this trip to your Google Calendar?"):
+                    # Split days into two weeks and format them for display
+                    week1 = [
+                        f"Week 1: {(datetime.date.today() + datetime.timedelta(days=i)).strftime('%A, %Y-%m-%d')}"
+                        for i in range(7)
+                    ]
+                    week2 = [
+                        f"Week 2: {(datetime.date.today() + datetime.timedelta(days=i)).strftime('%A, %Y-%m-%d')}"
+                        for i in range(7, 14)
+                    ]
+
+                    # Combine weeks with a separator
+                    days_options = week1 + ["------------------"] + week2
+
+                    selected_day = questionary.select(
+                        "Select the day for the trip:",
+                        choices=days_options,
+                        style=custom_style,
+                        qmark=""
+                    ).ask()
+
+                    if selected_day and selected_day != "------------------":
+                        # Split time options into AM/PM groups
+                        time_options = [
+                            "Morning (5AM-11AM)",
+                            "05:00", "06:00", "07:00", "08:00", "09:00", "10:00", "11:00",
+                            "Afternoon (12PM-5PM)",
+                            "12:00", "13:00", "14:00", "15:00", "16:00", "17:00",
+                            "Evening (6PM-10PM)",
+                            "18:00", "19:00", "20:00", "21:00", "22:00"
+                        ]
+
+                        start_time = questionary.select(
+                            "Select start time for the trip:",
+                            choices=time_options,
+                            style=custom_style,
+                            qmark=""
+                        ).ask()
+
+                        if start_time and not start_time.startswith(("Morning", "Afternoon", "Evening")):
+                            # Remove the "Week X: " prefix from selected_day
+                            selected_date = selected_day.split(": ")[1].split(", ")[1]
+                            event_datetime = f"{selected_date}T{start_time}:00"
+
+                            success, message = create_calendar_event(
+                                orig_loc, dest_loc, event_datetime,
+                                int(travel_time / 1000), vehicle
+                            )
+                            console.print(Panel(message,
+                                              title="📅 Calendar Integration",
+                                              border_style="panel.border" if success else "error",
+                                              box=box.ROUNDED))
 
                 # Display weather information
                 weather = OpenMeteo()
                 with console.status("[deco]Checking weather conditions...[/deco]", spinner="dots"):
                     curr_weather = weather.get_weather(orig_lat, orig_lng, hours=1)
                     forecast = weather.get_weather(dest_lat, dest_lng, hours=math.ceil(travel_time_in_hour))
-                    if exit_requested:
+                    if check_exit():
                         break
                     weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
 
@@ -346,14 +406,12 @@ def main():
                             break
                     voice_navigation(natural_instructions)
 
-                # Enhanced accommodation option
-                accommodations_option = safe_confirm(f"Would you like to find accommodation in {dest_loc}?")
-                if exit_requested or accommodations_option is None:
-                    break
-
-                if accommodations_option:
+                # Only offer accommodation for longer trips
+                if should_offer_accommodation(distance_km) and safe_confirm(
+                    f"\nThis is a long trip ({distance_km:.1f} km). Would you like to find accommodation in {dest_loc}?"
+                ):
                     # Get price range preference
-                    # price_options = {"low": "Budget", "medium": "Moderate", "high": "Luxury"}
+                    price_options = {"low": "Budget", "medium": "Moderate", "high": "Luxury"}
                     # price_panels = []
 
                     # for key, desc in price_options.items():
@@ -373,13 +431,13 @@ def main():
                     if price_range is None:
                         price_range = "medium"  # Default value if None
 
-                    if check_quit(price_range) or exit_requested:
+                    if check_quit(price_range) or check_exit():
                         break
 
                     # Get AI suggestions using existing method
                     with console.status(f"[deco]Finding places to stay in {dest_loc}...[/deco]", spinner="dots"):
                         ai_accommodations = gpt.find_accommodations(dest_loc)
-                        if exit_requested:
+                        if check_exit():
                             break
 
                     console.print(Panel(ai_accommodations,
@@ -427,13 +485,13 @@ def main():
                 table.add_row(f"{loc1.title()}", f"{loc2.title()}", f"{formatted_time}", f"{vehicle.title()}")
                 console.print(table)
 
-            elif not exit_requested:
+            elif not check_exit():
                 console.print(Panel(f'❌ Error: {paths_data.get("message", "Unknown error")}',
                                    border_style="error",
                                    box=box.ROUNDED))
 
             # Ask to plan another route
-            if exit_requested:
+            if check_exit():
                 break
 
             if not safe_confirm("\nPlan another route?"):
@@ -445,13 +503,12 @@ def main():
                            box=box.DOUBLE))
 
     except KeyboardInterrupt:
-        # This should be caught by the signal handler, but just in case
-        signal_handler(signal.SIGINT, None)
+        os._exit(0)  # Force immediate exit
     except Exception as e:
         console.print(Panel(f"❌ An unexpected error occurred: {str(e)}",
                            border_style="error",
                            box=box.ROUNDED))
-        sys.exit(1)
+        os._exit(1)  # Force immediate exit with error code
 
 if __name__ == "__main__":
     main()
