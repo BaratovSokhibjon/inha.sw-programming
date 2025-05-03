@@ -24,6 +24,7 @@ from rich.text import Text
 import pathlib
 import signal
 import sys
+import webbrowser
 
 # Theme setup
 THEMES = [
@@ -215,9 +216,98 @@ def select_vehicle_profile():
 
     return selection
 
-def print_steps(data, orig, dest, vehicle):
+def create_google_maps_link(origin_lat, origin_lng, dest_lat, dest_lng, vehicle):
+    """
+    Creates a Google Maps URL for the given coordinates and transportation mode
+
+    Parameters:
+    - origin_lat: Origin latitude
+    - origin_lng: Origin longitude
+    - dest_lat: Destination latitude
+    - dest_lng: Destination longitude
+    - vehicle: Transportation mode (car, bike, foot, public)
+
+    Returns:
+    - Google Maps URL string
+    """
+    # Map vehicle types to Google Maps transportation modes
+    transport_mode_map = {
+        "car": "driving",
+        "bike": "bicycling",
+        "foot": "walking",
+        "public": "transit"
+    }
+
+    # Get Google Maps transport mode or default to driving
+    transport_mode = transport_mode_map.get(vehicle, "driving")
+
+    # Create Google Maps URL with coordinates and transport mode
+    maps_url = (
+        f"https://www.google.com/maps/dir/?api=1"
+        f"&origin={origin_lat},{origin_lng}"
+        f"&destination={dest_lat},{dest_lng}"
+    )
+
+    return maps_url
+
+def find_real_accommodations(location, price_range="medium"):
+    """
+    Generate links to real accommodation services for the given location
+
+    Parameters:
+    - location: Destination location name
+    - price_range: Price range preference (low, medium, high)
+
+    Returns:
+    - Formatted string with accommodation links
+    """
+    # URL encode the location for use in URLs
+    encoded_location = urllib.parse.quote(location)
+
+    # Define accommodation service links
+    booking_url = f"https://www.booking.com/searchresults.html?ss={encoded_location}"
+    airbnb_url = f"https://www.airbnb.com/s/{encoded_location}/homes"
+    hotels_url = f"https://www.hotels.com/search.do?destination-id={encoded_location}"
+    expedia_url = f"https://www.expedia.com/Hotel-Search?destination={encoded_location}"
+
+    # Add price filters based on preference
+    if price_range == "low":
+        booking_url += "&nflt=price%3D1%3B"
+        airbnb_url += "?price_max=75"
+    elif price_range == "high":
+        booking_url += "&nflt=price%3D4%3B5%3B"
+        airbnb_url += "?price_min=150"
+    else:  # medium
+        booking_url += "&nflt=price%3D2%3B3%3B"
+        airbnb_url += "?price_min=75&price_max=150"
+
+    # Format the accommodation links
+    accommodation_links = (
+        f"Here are some accommodation options in [highlight]{location}[/highlight]:\n\n"
+        f"• [link={booking_url}]Booking.com[/link] - Wide range of hotels and apartments\n"
+        f"• [link={airbnb_url}]Airbnb[/link] - Private rooms and entire homes\n"
+        f"• [link={hotels_url}]Hotels.com[/link] - Hotel deals and discounts\n"
+        f"• [link={expedia_url}]Expedia[/link] - Package deals with flights\n\n"
+        f"You can click any of these links to open them in your browser."
+    )
+
+    return accommodation_links
+
+def open_url_in_browser(url):
+    """Open a URL in the default web browser"""
+    try:
+        webbrowser.open(url)
+        return True
+    except Exception as e:
+        console.print(Panel(f"❌ Error opening link: {str(e)}",
+                           border_style="error",
+                           box=box.ROUNDED))
+        return False
+
+def print_steps(data, orig, dest, vehicle, orig_lat, orig_lng, dest_lat, dest_lng):
     """
     Prints the route steps with improved formatting using panels and tables.
+    Also creates and displays a Google Maps link.
     """
     global exit_requested
     if exit_requested:
@@ -262,13 +352,24 @@ def print_steps(data, orig, dest, vehicle):
                            border_style="error",
                            box=box.ROUNDED))
 
+    # Create Google Maps link
+    maps_url = create_google_maps_link(orig_lat, orig_lng, dest_lat, dest_lng, vehicle)
+    console.print(Panel(f"🔗 View in Google Maps: [link={maps_url}]{maps_url}[/link]",
+                       title="📍 External Map",
+                       border_style="deco",
+                       box=box.ROUNDED))
+
+    # Ask if user wants to open the map
+    if safe_confirm("Would you like to open this route in Google Maps?"):
+        open_url_in_browser(maps_url)
+
     # Show directions with step panels
     console.print(Panel(f"🧭 Directions from [highlight]{orig}[/highlight] to [highlight]{dest}[/highlight] ({vehicle})",
                        border_style="title",
                        box=box.ROUNDED))
 
     steps_table = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
-    steps_table.add_column("Icon", justify="center", style="deco")
+    steps_table.add_column("Icon", justify="center", style="highlight")
     steps_table.add_column("Direction", style="answer")
 
     for step in data["paths"][0]["instructions"]:
@@ -356,7 +457,7 @@ def main():
                 break
 
             # Show loading animation during geocoding
-            with console.status("Finding location...", spinner="dots"):
+            with console.status("Finding location... \n", spinner="dots"):
                 orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
                 if exit_requested:
                     break
@@ -373,7 +474,7 @@ def main():
                 break
 
             # Show loading animation during geocoding
-            with console.status("Finding location...", spinner="dots"):
+            with console.status("Finding location... \n", spinner="dots"):
                 dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
                 if exit_requested:
                     break
@@ -402,6 +503,18 @@ def main():
                         paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
                         if exit_requested:
                             break
+
+                    # Create Google Maps link for public transit
+                    maps_url = create_google_maps_link(orig_lat, orig_lng, dest_lat, dest_lng, "public")
+                    console.print(Panel(f"🔗 View in Google Maps: [link={maps_url}]{maps_url}[/link]",
+                                       title="📍 Public Transit Route",
+                                       border_style="deco",
+                                       box=box.ROUNDED))
+
+                    # Ask if user wants to open the map
+                    if safe_confirm("Would you like to open this route in Google Maps?"):
+                        open_url_in_browser(maps_url)
+
                 except Exception as e:
                     console.print(Panel(f"⚠️ Couldn't generate route: {str(e)}",
                                        border_style="error",
@@ -446,8 +559,8 @@ def main():
                                    border_style="panel.border",
                                    box=box.ROUNDED))
 
-                # Print route steps
-                print_steps(paths_data, orig_loc, dest_loc, vehicle)
+                # Print route steps with Google Maps link
+                print_steps(paths_data, orig_loc, dest_loc, vehicle, orig_lat, orig_lng, dest_lat, dest_lng)
                 if exit_requested:
                     break
 
@@ -463,21 +576,61 @@ def main():
                             break
                     voice_navigation(natural_instructions)
 
-                # Accommodation option
+                # Enhanced accommodation option
                 accommodations_option = safe_confirm(f"Would you like to find accommodation in {dest_loc}?")
                 if exit_requested or accommodations_option is None:
                     break
 
                 if accommodations_option:
+                    # Get price range preference
+                    price_options = {"low": "Budget", "medium": "Moderate", "high": "Luxury"}
+                    price_panels = []
+
+                    for key, desc in price_options.items():
+                        panel = Panel(desc, title=f"[{key}]", border_style="menu.border", box=box.ROUNDED)
+                        price_panels.append(panel)
+
+                    console.print(Columns(price_panels, equal=True, expand=True))
+                    price_range = safe_input("\n💲 [question]Price Range Preference[/question]",
+                                            choices=list(price_options.keys()),
+                                            default="medium")
+
+                    if price_range is None or check_quit(price_range) or exit_requested:
+                        break
+
+                    # Get AI suggestions using existing method
                     with console.status(f"[deco]Finding places to stay in {dest_loc}...[/deco]", spinner="dots"):
-                        accommodations = gpt.find_accommodations(dest_loc)
+                        ai_accommodations = gpt.find_accommodations(dest_loc)
                         if exit_requested:
                             break
 
-                    console.print(Panel(accommodations,
-                                       title=f"🏨 Accommodations in {dest_loc}",
+                    console.print(Panel(ai_accommodations,
+                                       title=f"🤖 AI Accommodation Suggestions for {dest_loc}",
                                        border_style="panel.border",
                                        box=box.ROUNDED))
+
+                    # Add real accommodation links
+                    real_accommodations = find_real_accommodations(dest_loc, price_range)
+
+                    console.print(Panel(real_accommodations,
+                                       title=f"🏨 Real Accommodation Options in {dest_loc}",
+                                       border_style="panel.border",
+                                       box=box.ROUNDED))
+
+                    # Ask if user wants to open any accommodation site
+                    sites = {
+                        "booking": f"https://www.booking.com/searchresults.html?ss={urllib.parse.quote(dest_loc)}",
+                        "airbnb": f"https://www.airbnb.com/s/{urllib.parse.quote(dest_loc)}/homes",
+                        "hotels": f"https://www.hotels.com/search.do?destination-id={urllib.parse.quote(dest_loc)}",
+                        "expedia": f"https://www.expedia.com/Hotel-Search?destination={urllib.parse.quote(dest_loc)}"
+                    }
+
+                    open_site = safe_input("\n🔗 [question]Open accommodation site[/question] (or 'skip')",
+                                          choices=list(sites.keys()) + ["skip"],
+                                          default="skip")
+
+                    if open_site != "skip" and open_site in sites:
+                        open_url_in_browser(sites[open_site])
 
                 # Create final trip summary
                 seconds = float(travel_time) // 1000

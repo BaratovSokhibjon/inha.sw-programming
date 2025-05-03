@@ -28,7 +28,7 @@ def voice_navigation(instructions):
     natural_instructions : list of str
         A list of natural language instructions to be spoken aloud.
     """
-    for instruction in instructions:
+    for instruction in instructions[1:]:
         if not instruction.strip():
             continue
 
