@@ -22,6 +22,8 @@ from rich_menu import Menu
 from rich.align import Align
 from rich.text import Text
 import pathlib
+import signal
+import sys
 
 # Theme setup
 THEMES = [
@@ -81,6 +83,22 @@ dotenv.load_dotenv()
 graphhopper_api_key = os.getenv("GH_API_KEY")
 genai_api_key = os.getenv("GEMINI_API_KEY")
 
+# Keyboard interrupt flag
+exit_requested = False
+
+def signal_handler(sig, frame):
+    """Handle keyboard interrupts (Ctrl+C)"""
+    global exit_requested
+    exit_requested = True
+    console.print("\n")
+    console.print(Panel("⚠️ Program stop requested. Exiting gracefully...",
+                        border_style="error",
+                        box=box.ROUNDED))
+    sys.exit(0)
+
+# Register the signal handler
+signal.signal(signal.SIGINT, signal_handler)
+
 # Validate API keys
 if not graphhopper_api_key:
     console.print(Panel("❌ Error: Graphhopper API key (GH_API_KEY) is not set.",
@@ -93,7 +111,7 @@ if not genai_api_key:
                         box=box.ROUNDED))
     exit(1)
 
-genai_model = "gemini-2.0-flash"
+genai_model = os.getenv("GENAI_MODEL", "gemini-2.0-flash")
 
 geo = Geocoding(graphhopper_api_key)
 gpt = Genai(genai_api_key, genai_model)
@@ -107,6 +125,10 @@ class OpenMeteo:
         self.base_url = "https://api.open-meteo.com/v1/forecast"
 
     def get_weather(self, lat, lng, hours=12):
+        global exit_requested
+        if exit_requested:
+            return None
+
         url = (
             f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lng}"
             f"&hourly=temperature_2m,weathercode,wind_speed_10m&timezone=auto"
@@ -166,6 +188,9 @@ def display_header():
     header_text = Text("🛣️  TravelGuide - Your Smart Journey Planner", justify="center")
     header_text.stylize("title")
     console.print(Panel(header_text, box=box.DOUBLE))
+    console.print(Panel("Press [bold red]Ctrl+C[/bold red] at any time to exit the program.",
+                        border_style="deco",
+                        box=box.ROUNDED))
 
 def select_vehicle_profile():
     """Interactive menu to select vehicle profile"""
@@ -194,6 +219,10 @@ def print_steps(data, orig, dest, vehicle):
     """
     Prints the route steps with improved formatting using panels and tables.
     """
+    global exit_requested
+    if exit_requested:
+        return
+
     distance_m = data["paths"][0]["distance"]
     duration_ms = data["paths"][0]["time"]
 
@@ -221,6 +250,8 @@ def print_steps(data, orig, dest, vehicle):
     try:
         with console.status("[deco]AI is analyzing your route...[/deco]", spinner="dots"):
             summary = gpt.generate_route_summary(data, orig, dest, vehicle)
+            if exit_requested:
+                return
 
         console.print(Panel(f"{summary}",
                            title="🤖 AI Route Summary",
@@ -241,6 +272,9 @@ def print_steps(data, orig, dest, vehicle):
     steps_table.add_column("Direction", style="answer")
 
     for step in data["paths"][0]["instructions"]:
+        if exit_requested:
+            return
+
         path_text = step["text"]
 
         # Choose the appropriate direction arrow based on the text
@@ -284,149 +318,205 @@ def print_steps(data, orig, dest, vehicle):
 
     console.print(steps_table)
 
+def safe_input(prompt, **kwargs):
+    """
+    Wrapper for input functions to handle keyboard interrupts
+    """
+    try:
+        return Prompt.ask(prompt, **kwargs)
+    except KeyboardInterrupt:
+        signal_handler(signal.SIGINT, None)
+        return None  # Will not reach here, but included for completeness
+
+def safe_confirm(prompt):
+    """
+    Wrapper for confirm to handle keyboard interrupts
+    """
+    try:
+        return Confirm.ask(prompt)
+    except KeyboardInterrupt:
+        signal_handler(signal.SIGINT, None)
+        return False  # Will not reach here, but included for completeness
+
 def main():
     """Main application flow with improved UI"""
-    display_header()
+    global exit_requested
+    try:
+        display_header()
 
-    while True:
-        # Select vehicle profile with visual menu
-        vehicle = select_vehicle_profile()
-        if check_quit(vehicle):
-            break
+        while not exit_requested:
+            # Select vehicle profile with visual menu
+            vehicle = select_vehicle_profile()
+            if check_quit(vehicle) or exit_requested:
+                break
 
-        # Get starting location
-        loc1 = Prompt.ask("\n🏁 [question]Starting Location[/question]")
-        if check_quit(loc1):
-            break
+            # Get starting location
+            loc1 = safe_input("\n🏁 [question]Starting Location[/question]")
+            if loc1 is None or check_quit(loc1) or exit_requested:
+                break
 
-        # Show loading animation during geocoding
-        with console.status("[deco]Finding location...[/deco]", spinner="dots"):
-            orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
-
-        if orig_status != 200:
-            console.print(Panel("❌ Could not find starting location",
-                               border_style="error",
-                               box=box.ROUNDED))
-            continue
-
-        # Get destination
-        loc2 = Prompt.ask("\n🏁 [question]Destination[/question]")
-        if check_quit(loc2):
-            break
-
-        # Show loading animation during geocoding
-        with console.status("[deco]Finding location...[/deco]", spinner="dots"):
-            dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
-
-        if dest_status != 200:
-            console.print(Panel("❌ Could not find destination",
-                               border_style="error",
-                               box=box.ROUNDED))
-            continue
-
-        console.print(Panel(f"🚩 From: [highlight]{orig_loc}[/highlight]\n🏁 To: [highlight]{dest_loc}[/highlight]",
-                           title="Your Route",
-                           border_style="panel.border",
-                           box=box.ROUNDED))
-
-        paths_status = 404
-        paths_data = None
-
-        if vehicle == "public":
-            try:
-                start_time = Prompt.ask("🕒 [question]Please provide a start time[/question]", default="1pm")
-                if check_quit(start_time):
+            # Show loading animation during geocoding
+            with console.status("Finding location...", spinner="dots"):
+                orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
+                if exit_requested:
                     break
 
-                with console.status("[deco]Planning your public transit route...[/deco]", spinner="dots"):
-                    paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
-            except Exception as e:
-                console.print(Panel(f"⚠️ Couldn't generate route: {str(e)}",
+            if orig_status != 200:
+                console.print(Panel("❌ Could not find starting location",
                                    border_style="error",
                                    box=box.ROUNDED))
+                continue
 
-        elif orig_status == 200 and dest_status == 200:
-            op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
-            dp = "&point=" + str(dest_lat) + "%2C" + str(dest_lng)
-            paths_url = route_url + urllib.parse.urlencode(
-                {"key": graphhopper_api_key, "vehicle": vehicle}
-            ) + op + dp
+            # Get destination
+            loc2 = safe_input("\n🏁 [question]Destination[/question]")
+            if loc2 is None or check_quit(loc2) or exit_requested:
+                break
 
-            with console.status("[deco]Calculating your route...[/deco]", spinner="dots"):
-                response = requests.get(paths_url)
-                paths_status = response.status_code
-                paths_data = response.json()
+            # Show loading animation during geocoding
+            with console.status("Finding location...", spinner="dots"):
+                dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
+                if exit_requested:
+                    break
 
-            api_info = f"🛣️ Routing API Status: {paths_status}\n🔗 API URL: {paths_url}"
-            console.print(Panel(api_info,
-                               title="API Details",
-                               border_style="deco",
-                               box=box.ROUNDED))
+            if dest_status != 200:
+                console.print(Panel("❌ Could not find destination",
+                                   border_style="error",
+                                   box=box.ROUNDED))
+                continue
 
-        # Process and display route if data is available
-        if paths_status == 200 and paths_data is not None:
-            travel_time = paths_data["paths"][0]["time"]
-            travel_time_in_hour = float(travel_time) / 1000 / 60 / 60
-
-            # Display weather information
-            weather = OpenMeteo()
-            with console.status("[deco]Checking weather conditions...[/deco]", spinner="dots"):
-                curr_weather = weather.get_weather(orig_lat, orig_lng, hours=1)
-                forecast = weather.get_weather(dest_lat, dest_lng, hours=math.ceil(travel_time_in_hour))
-                weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
-
-            console.print(Panel(weather_advisory,
-                               title="🌦️ Weather Advisory",
+            console.print(Panel(f"🚩 From: [highlight]{orig_loc}[/highlight]\n🏁 To: [highlight]{dest_loc}[/highlight]",
+                               title="Your Route",
                                border_style="panel.border",
                                box=box.ROUNDED))
 
-            # Print route steps
-            print_steps(paths_data, orig_loc, dest_loc, vehicle)
+            paths_status = 404
+            paths_data = None
 
-            # Voice navigation option
-            voice_option = Confirm.ask("Would you like voice-like instructions?")
-            if voice_option:
-                with console.status("[deco]Preparing voice navigation...[/deco]", spinner="dots"):
-                    natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
-                voice_navigation(natural_instructions)
+            if vehicle == "public":
+                try:
+                    start_time = safe_input("🕒 [question]Please provide a start time[/question]", default="1pm")
+                    if start_time is None or check_quit(start_time) or exit_requested:
+                        break
 
-            # Accommodation option
-            accommodations_option = Confirm.ask(f"Would you like to find accommodation in {dest_loc}?")
-            if accommodations_option:
-                with console.status(f"[deco]Finding places to stay in {dest_loc}...[/deco]", spinner="dots"):
-                    accommodations = gpt.find_accommodations(dest_loc)
+                    with console.status("[deco]Planning your public transit route...[/deco]", spinner="dots"):
+                        paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
+                        if exit_requested:
+                            break
+                except Exception as e:
+                    console.print(Panel(f"⚠️ Couldn't generate route: {str(e)}",
+                                       border_style="error",
+                                       box=box.ROUNDED))
 
-                console.print(Panel(accommodations,
-                                   title=f"🏨 Accommodations in {dest_loc}",
+            elif orig_status == 200 and dest_status == 200:
+                op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
+                dp = "&point=" + str(dest_lat) + "%2C" + str(dest_lng)
+                paths_url = route_url + urllib.parse.urlencode(
+                    {"key": graphhopper_api_key, "vehicle": vehicle}
+                ) + op + dp
+
+                with console.status("[deco]Calculating your route...[/deco]", spinner="dots"):
+                    response = requests.get(paths_url)
+                    paths_status = response.status_code
+                    paths_data = response.json()
+                    if exit_requested:
+                        break
+
+                api_info = f"🛣️ Routing API Status: {paths_status}\n🔗 API URL: {paths_url}"
+                console.print(Panel(api_info,
+                                   title="API Details",
                                    border_style="panel.border",
                                    box=box.ROUNDED))
 
-            # Create final trip summary
-            seconds = float(travel_time) // 1000
-            formatted_time = str(datetime.timedelta(seconds=seconds))
+            # Process and display route if data is available
+            if paths_status == 200 and paths_data is not None and not exit_requested:
+                travel_time = paths_data["paths"][0]["time"]
+                travel_time_in_hour = float(travel_time) / 1000 / 60 / 60
 
-            table = Table(title="🚗 Trip Summary", box=box.DOUBLE, title_style="title")
-            table.add_column("Departure", justify="right", style="highlight")
-            table.add_column("Arrival", style="highlight")
-            table.add_column("Duration", style="answer")
-            table.add_column("Transportation", style="answer")
+                # Display weather information
+                weather = OpenMeteo()
+                with console.status("[deco]Checking weather conditions...[/deco]", spinner="dots"):
+                    curr_weather = weather.get_weather(orig_lat, orig_lng, hours=1)
+                    forecast = weather.get_weather(dest_lat, dest_lng, hours=math.ceil(travel_time_in_hour))
+                    if exit_requested:
+                        break
+                    weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
 
-            table.add_row(f"{loc1.title()}", f"{loc2.title()}", f"{formatted_time}", f"{vehicle.title()}")
-            console.print(table)
+                console.print(Panel(weather_advisory,
+                                   title="🌦️ Weather Advisory",
+                                   border_style="panel.border",
+                                   box=box.ROUNDED))
 
-        else:
-            console.print(Panel(f'❌ Error: {paths_data.get("message", "Unknown error")}',
-                               border_style="error",
-                               box=box.ROUNDED))
+                # Print route steps
+                print_steps(paths_data, orig_loc, dest_loc, vehicle)
+                if exit_requested:
+                    break
 
-        # Ask to plan another route
-        if not Confirm.ask("\nPlan another route?"):
-            break
+                # Voice navigation option
+                voice_option = safe_confirm("Would you like voice-like instructions?")
+                if exit_requested or voice_option is None:
+                    break
 
-    # Goodbye message
-    console.print(Panel("👋 Thank you for using TravelGuide!",
-                       border_style="title",
-                       box=box.DOUBLE))
+                if voice_option:
+                    with console.status("[deco]Preparing voice navigation...[/deco]", spinner="dots"):
+                        natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
+                        if exit_requested:
+                            break
+                    voice_navigation(natural_instructions)
+
+                # Accommodation option
+                accommodations_option = safe_confirm(f"Would you like to find accommodation in {dest_loc}?")
+                if exit_requested or accommodations_option is None:
+                    break
+
+                if accommodations_option:
+                    with console.status(f"[deco]Finding places to stay in {dest_loc}...[/deco]", spinner="dots"):
+                        accommodations = gpt.find_accommodations(dest_loc)
+                        if exit_requested:
+                            break
+
+                    console.print(Panel(accommodations,
+                                       title=f"🏨 Accommodations in {dest_loc}",
+                                       border_style="panel.border",
+                                       box=box.ROUNDED))
+
+                # Create final trip summary
+                seconds = float(travel_time) // 1000
+                formatted_time = str(datetime.timedelta(seconds=seconds))
+
+                table = Table(title="🚗 Trip Summary", box=box.DOUBLE, title_style="title")
+                table.add_column("Departure", justify="right", style="highlight")
+                table.add_column("Arrival", style="highlight")
+                table.add_column("Duration", style="answer")
+                table.add_column("Transportation", style="answer")
+
+                table.add_row(f"{loc1.title()}", f"{loc2.title()}", f"{formatted_time}", f"{vehicle.title()}")
+                console.print(table)
+
+            elif not exit_requested:
+                console.print(Panel(f'❌ Error: {paths_data.get("message", "Unknown error")}',
+                                   border_style="error",
+                                   box=box.ROUNDED))
+
+            # Ask to plan another route
+            if exit_requested:
+                break
+
+            if not safe_confirm("\nPlan another route?"):
+                break
+
+        # Goodbye message
+        console.print(Panel("👋 Thank you for using TravelGuide!",
+                           border_style="title",
+                           box=box.DOUBLE))
+
+    except KeyboardInterrupt:
+        # This should be caught by the signal handler, but just in case
+        signal_handler(signal.SIGINT, None)
+    except Exception as e:
+        console.print(Panel(f"❌ An unexpected error occurred: {str(e)}",
+                           border_style="error",
+                           box=box.ROUNDED))
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
