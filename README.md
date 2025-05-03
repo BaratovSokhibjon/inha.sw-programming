@@ -1,4 +1,5 @@
 # Repo for team "Five Stars" in Software Engineering class
+Link to ppt : https://www.canva.com/design/DAGmQ-_sqMc/S-gP92pfUMqitfG9K1T5IA/edit
 
 > This is the main documentation about of the repo but the tasks are divided into branches and you can go to the documentation of that branch which is usually in the docs folder to get the entrypoint for the project.
 
