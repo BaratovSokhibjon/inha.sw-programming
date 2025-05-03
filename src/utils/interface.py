@@ -42,7 +42,7 @@ THEMES = [
 ]
 
 # Initialize theme manager
-theme_dir = pathlib.Path("~/.rich_theme_manager/themes").expanduser()
+theme_dir = pathlib.Path("public/themes").expanduser()
 theme_manager = ThemeManager(theme_dir=theme_dir, themes=THEMES)
 dark = theme_manager.get("dark")
 
