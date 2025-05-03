@@ -10,6 +10,24 @@ from utils import interface
 import time
 from rich.table import Table
 import datetime
+def suggest_transport(mode: str, distance_km: float) -> str:
+    """
+    Return a warning string if the distance is too long for walking or biking.
+    mode: one of "car", "bike", "foot"/"walk", or "public"
+    distance_km: the total trip distance in kilometers
+    """
+    # Normalize GraphHopper’s "foot" to our "walk"
+    if mode == "foot":
+        key = "walk"
+    else:
+        key = mode
+
+    if key == "walk" and distance_km > 10:
+        return f"⚠️ {distance_km:.1f} km is a long walk! Maybe try a bike 🚲 or car 🚗 instead?"
+    elif key == "bike" and distance_km > 30:
+        return f"⚠️ {distance_km:.1f} km is a long trip for a bike! Maybe use a car 🚗 or train 🚆 instead?"
+    return ""
+
 #............................................................................................................................ INTERFACE ...............................
 
 dark = interface.theme_manager.get("dark")
@@ -277,7 +295,12 @@ while True:
         console.print(
             f"🧭 Directions from {orig_loc} to {dest_loc} {vehicle}", style="answer"
         )
-
+        distance_m = paths_data["paths"][0]["distance"]
+        distance_km = distance_m / 1000.0
+        suggestion = suggest_transport(vehicle, distance_km)
+        if suggestion:
+            console.print(suggestion, style="warning")
+    
         print_steps(paths_data, orig_loc, dest_loc)
         console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
 
