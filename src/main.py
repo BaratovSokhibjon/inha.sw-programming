@@ -1,3 +1,4 @@
+from rich.style import Style
 import requests
 import urllib
 import os
@@ -10,14 +11,70 @@ from utils import interface
 import time
 from rich.table import Table
 import datetime
-#............................................................................................................................ INTERFACE ...............................
+from rich.panel import Panel
+from rich.prompt import Prompt, Confirm
+from rich.layout import Layout
+from rich.live import Live
+from rich import box
+from rich.columns import Columns
+from rich_theme_manager import Theme, ThemeManager
+from rich_menu import Menu
+from rich.align import Align
+from rich.text import Text
+import pathlib
 
-dark = interface.theme_manager.get("dark")
-interface.theme_manager.preview_theme(dark)
+# Theme setup
+THEMES = [
+    Theme(
+        name="dark",
+        description="Dark mode theme",
+        tags=["dark"],
+        styles={
+            "question": Style(color="#53599A", bold=True),
+            "answer": Style(color="#def6ca"),
+            "error": Style(color="#ce2d4f"),
+            "deco": Style(color="#568259"),
+            "highlight": Style(color="#f8bdc4", bold=True),
+            "title": Style(color="#FF875F", bold=True),  # Ensure this style is defined
+            "panel.border": Style(color="#568259"),
+            "menu.border": Style(color="#53599A"),
+        },
+    ),
+    Theme(
+        name="light",
+        description="Light mode theme",
+        tags=["light"],
+        styles={
+            "question": Style(color="#3a539b", bold=True),
+            "answer": Style(color="#006400"),
+            "error": Style(color="#B22222"),
+            "deco": Style(color="#2E8B57"),
+            "highlight": Style(color="#9932CC", bold=True),
+            "title": Style(color="#CD5C5C", bold=True),
+            "panel.border": Style(color="#2E8B57"),
+            "menu.border": Style(color="#3a539b"),
+        },
+    ),
+]
+
+# Initialize theme manager
+theme_dir = pathlib.Path("~/.rich_theme_manager/themes").expanduser()
+theme_manager = ThemeManager(theme_dir=theme_dir, themes=THEMES)
+dark = theme_manager.get("dark")
+
+# Ensure 'menu.border' and 'panel.border' styles are defined
+if "menu.border" not in dark.styles:
+    dark.styles["menu.border"] = Style(color="white")  # Default to white if not defined
+if "highlight" not in dark.styles:
+    dark.styles["highlight"] = Style(color="yellow", bold=True)  # Default to yellow if not defined
+if "panel.border" not in dark.styles:
+    dark.styles["panel.border"] = Style(color="white")  # Default to white if not defined
+if "title" not in dark.styles:
+    dark.styles["title"] = Style(color="#FF875F", bold=True)  # Ensure 'title' style is defined
+
 console = Console(theme=dark)
 
-
-# ...............................................................................................................................................................................
+# API setup
 route_url = "https://graphhopper.com/api/1/route?"
 
 dotenv.load_dotenv()
@@ -26,10 +83,14 @@ genai_api_key = os.getenv("GEMINI_API_KEY")
 
 # Validate API keys
 if not graphhopper_api_key:
-    console.print("❌ Error: Graphhopper API key (GH_API_KEY) is not set.", style="error")
+    console.print(Panel("❌ Error: Graphhopper API key (GH_API_KEY) is not set.",
+                        border_style="error",
+                        box=box.ROUNDED))
     exit(1)
 if not genai_api_key:
-    console.print("❌ Error: Gemini API key (GEMINI_API_KEY) is not set.", style = "error")
+    console.print(Panel("❌ Error: Gemini API key (GEMINI_API_KEY) is not set.",
+                        border_style="error",
+                        box=box.ROUNDED))
     exit(1)
 
 genai_model = "gemini-2.0-flash"
@@ -37,22 +98,9 @@ genai_model = "gemini-2.0-flash"
 geo = Geocoding(graphhopper_api_key)
 gpt = Genai(genai_api_key, genai_model)
 
-
 class OpenMeteo:
     """
     Provides functionality to interact with the Open-Meteo weather API.
-
-    This class allows users to fetch weather forecasts for a specific location and decode weather codes into
-    human-readable descriptions. It uses the Open-Meteo API to fetch hourly weather data, including temperature,
-    weather codes, and wind speed.
-
-    Attributes:
-        base_url (str): The base URL for the Open-Meteo API.
-
-    Methods:
-        __init__: Initializes the OpenMeteo instance and sets the base API URL.
-        get_weather: Fetches and formats a weather forecast for a given location and time range.
-        decode_weather: Decodes numeric weather codes into human-readable weather descriptions.
     """
 
     def __init__(self):
@@ -66,11 +114,12 @@ class OpenMeteo:
         response = requests.get(url)
         data = response.json()
         if (hours > 168):
-            console.print("The travel duration exceeds the available forecast range.\n Weather conditions will be shown for up to the next 168 hours only.", style ="error")
+            console.print(Panel("⚠️ The travel duration exceeds the available forecast range.\n Weather conditions will be shown for up to the next 168 hours only.",
+                                border_style="error",
+                                box=box.ROUNDED))
 
         hourly = data.get("hourly", {})
         available_hours = len(hourly.get("time", []))
-        #print(f" Available forecast hours: {available_hours}")  # Debug
 
         hours = min(hours, available_hours)  # cap to prevent out-of-range
 
@@ -83,62 +132,67 @@ class OpenMeteo:
             ]
             return "\n".join(forecast)
         except Exception as e:
-            console.print(f"❌ Error parsing weather data: {str(e)}",style = "error")
-
-
+            console.print(Panel(f"❌ Error parsing weather data: {str(e)}",
+                                border_style="error",
+                                box=box.ROUNDED))
 
     def decode_weather(self, code):
-        # Simple mapping for extreme conditions
+        # Weather code mapping with emojis
         weather_map = {
-            0: "clear sky", 1: "mainly clear", 2: "partly cloudy", 3: "overcast",
-            45: "fog", 48: "depositing rime fog",
-            51: "light drizzle", 61: "light rain", 71: "light snow",
-            95: "thunderstorm", 96: "thunderstorm w/ hail"
+            0: "☀️ clear sky",
+            1: "🌤️ mainly clear",
+            2: "⛅ partly cloudy",
+            3: "☁️ overcast",
+            45: "🌫️ fog",
+            48: "❄️ depositing rime fog",
+            51: "🌦️ light drizzle",
+            61: "🌧️ light rain",
+            71: "❄️ light snow",
+            95: "⛈️ thunderstorm",
+            96: "🌩️ thunderstorm w/ hail"
         }
         return weather_map.get(code, "unknown")
-
 
 def check_quit(user_input):
     """
     Determines if the user input indicates a quit command.
-
-    This function evaluates whether the provided input matches either of the
-    designated commands for quitting: "quit" or "q". It is case-sensitive and
-    intends to provide a simple mechanism to check for termination instructions.
-
-    Parameters:
-    user_input: str
-        The input string provided by the user to be evaluated.
-
-    Returns:
-    bool
-        True if the input matches "quit" or "q", otherwise False.
     """
-    if user_input == "quit" or user_input == "q":
+    if user_input.lower() in ["quit", "q", "exit"]:
         return True
-    else:
-        return False
+    return False
 
-def print_steps(data, orig, dest):
+def display_header():
+    """Display app header with styled title"""
+    header_text = Text("🛣️  TravelGuide - Your Smart Journey Planner", justify="center")
+    header_text.stylize("title")
+    console.print(Panel(header_text, box=box.DOUBLE))
+
+def select_vehicle_profile():
+    """Interactive menu to select vehicle profile"""
+    profiles = {
+        "car": "🚗 Car - Standard road vehicle navigation",
+        "bike": "🚲 Bike - Bicycle-friendly routes",
+        "foot": "🚶 Foot - Walking routes and pedestrian paths",
+        "public": "🚌 Public - Public transportation options"
+    }
+
+    profile_panels = []
+    for key, desc in profiles.items():
+        panel = Panel(desc, title=f"[{key}]", border_style="menu.border", box=box.ROUNDED)
+        profile_panels.append(panel)
+
+    columns = Columns(profile_panels, equal=True, expand=True)
+
+    console.print(columns)
+
+    options = list(profiles.keys())
+    selection = Prompt.ask("Enter your choice", choices=options, default="car")
+
+    return selection
+
+def print_steps(data, orig, dest, vehicle):
     """
-    Prints the route steps, including distance, duration, and individual step instructions with corresponding symbols.
-
-    This function processes the given route data and computes both the overall trip summary
-    and detailed step-by-step instructions. The overall summary includes the trip distance in
-    miles and kilometers and the duration in hours, minutes, and seconds. For each step in
-    the instruction set, the function determines the corresponding direction symbol and prints
-    the instruction along with the step distance in a readable format. Additionally, attempts
-    are made to generate an AI-generated summary of the route using a separate function.
-
-    Parameters:
-        data (dict): The route data containing paths and instructions. It includes information
-            about the overall trip such as distance and duration, as well as detailed step
-            instructions.
-        orig (str): The original starting location of the trip.
-        dest (str): The destination for the trip.
-
-    Raises:
-        Exception: If an error occurs while generating the AI-driven route summary.
+    Prints the route steps with improved formatting using panels and tables.
     """
     distance_m = data["paths"][0]["distance"]
     duration_ms = data["paths"][0]["time"]
@@ -150,26 +204,46 @@ def print_steps(data, orig, dest):
     minutes = int(duration_ms / 1000 / 60 % 60)
     hours = int(duration_ms / 1000 / 60 / 60)
 
-    console.print("📏 Distance Traveled: {:.1f} miles / {:.1f} km".format(miles, km), style="answer")
-    console.print("⏱️ Trip Duration: {:02d}:{:02d}:{:02d}".format(hours, minutes, sec),style="answer")
-    console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
+    # Create summary table
+    summary_table = Table(show_header=False, box=box.SIMPLE)
+    summary_table.add_column("Info", style="highlight")
+    summary_table.add_column("Value", style="answer")
 
+    summary_table.add_row("📏 Distance", f"{miles:.1f} miles / {km:.1f} km")
+    summary_table.add_row("⏱️ Duration", f"{hours:02d}:{minutes:02d}:{sec:02d}")
+
+    console.print(Panel(summary_table,
+                        title="📊 Trip Summary",
+                        border_style="panel.border",
+                        box=box.ROUNDED))
+
+    # Generate AI summary with progress animation
     try:
-        summary = gpt.generate_route_summary(paths_data, orig, dest, vehicle)
-        console.print("🤖 AI Route Summary:", style ="deco")
-        for i in track(range(5), description="Calculating your route..."):
-            time.sleep(0.1)  # Simulate work being done
-        console.print(f"💬 {summary}", style="answer")
-        console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
+        with console.status("[deco]AI is analyzing your route...[/deco]", spinner="dots"):
+            summary = gpt.generate_route_summary(data, orig, dest, vehicle)
+
+        console.print(Panel(f"{summary}",
+                           title="🤖 AI Route Summary",
+                           border_style="panel.border",
+                           box=box.ROUNDED))
     except Exception as e:
-        console.print(f"⚠️ Couldn't generate route summary: {str(e)}",style="error")
+        console.print(Panel(f"⚠️ Couldn't generate route summary: {str(e)}",
+                           border_style="error",
+                           box=box.ROUNDED))
+
+    # Show directions with step panels
+    console.print(Panel(f"🧭 Directions from [highlight]{orig}[/highlight] to [highlight]{dest}[/highlight] ({vehicle})",
+                       border_style="title",
+                       box=box.ROUNDED))
+
+    steps_table = Table(box=box.SIMPLE, show_header=False, padding=(0, 1))
+    steps_table.add_column("Icon", justify="center", style="deco")
+    steps_table.add_column("Direction", style="answer")
 
     for step in data["paths"][0]["instructions"]:
         path_text = step["text"]
-        time.sleep(0.1)
-        # Choose the appropriate direction arrow based on the text
-        direction_arrow = "➡️"  # default is right
 
+        # Choose the appropriate direction arrow based on the text
         path_text_lower = path_text.lower()
         if "left" in path_text_lower:
             direction_arrow = "⬅️"
@@ -193,6 +267,8 @@ def print_steps(data, orig, dest):
             direction_arrow = "↩️"
         elif "sharp right" in path_text_lower:
             direction_arrow = "↪️"
+        else:
+            direction_arrow = "➡️"  # default
 
         if "distance" in step:
             step_distance = step["distance"]
@@ -201,119 +277,156 @@ def print_steps(data, orig, dest):
                 distance_str = f"{step_distance:.0f} m"
             else:
                 distance_str = f"{step_distance / 1000:.1f} km / {step_distance / 1000 / 1.61:.1f} miles"
-            console.print(f"{direction_arrow}     {path_text} ({distance_str})",style = "answer")
+
+            steps_table.add_row(direction_arrow, f"{path_text} ({distance_str})")
         else:
-            console.print(f"{direction_arrow}     {path_text}",style="answer")
+            steps_table.add_row(direction_arrow, path_text)
 
+    console.print(steps_table)
 
+def main():
+    """Main application flow with improved UI"""
+    display_header()
 
-while True:
-
-    console.print("🚗 Vehicle profiles available on Graphhopper: 🚗", style = "question")
-    console.print("🚗 car, 🚲 bike, 🚶 foot, 🚌 public",style = "question")
-    profile = ["car", "bike", "foot", "public"]
-    console.print("🔍 Enter a vehicle profile from the list above: ", style="question")
-    vehicle = input().strip().lower()
-
-    if check_quit(vehicle):
-        break
-    elif vehicle not in profile:
-        vehicle = "car"
-        console.print("⚠️ No valid vehicle profile was entered. Using the car profile.", style="other")
-
-    loc1 = console.input("[question]🏁 Starting Location: [/question] ")
-    if check_quit(loc1):
-        break
-    orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
-
-    loc2 = console.input("[question]🏁 Destination: [/question]")
-    if check_quit(loc2):
-        break
-    dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
-
-    console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
-
-    paths_status = 404
-    paths_data = None
-    if vehicle == "public":
-        try:
-            start_time = console.input("🏁 [question]Please provide a start time (e.g. 1pm):[/question] ")
-            if check_quit(start_time):
-                break
-            paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
-        except Exception as e:
-            console.print(f"⚠️ Couldn't generate route summary: {str(e)}", style="error")
-
-    elif orig_status == 200 and dest_status == 200:
-        op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
-        dp = "&point=" + str(dest_lat) + "%2C" + str(dest_lng)
-        paths_url = route_url + urllib.parse.urlencode(
-            {"key": graphhopper_api_key, "vehicle": vehicle}
-        ) + op + dp
-
-        response = requests.get(paths_url)
-        paths_status = response.status_code
-        paths_data = response.json()
-
-        console.print(f"🛣️ Routing API Status: {paths_status}", style="answer")
-        console.print(f"🔗 Routing API URL:\n{paths_url}",style="answer")
-        console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
-
-    if paths_status == 200 and paths_data is not None:
-        travel_time = paths_data["paths"][0]["time"]
-        travel_time_in_hour = float(travel_time) /1000/ 60/ 60
-        weather = OpenMeteo()
-        curr_weather = weather.get_weather(orig_lat, orig_lng, hours= 1)
-        forecast = weather.get_weather(dest_lat, dest_lng, hours=math.ceil(travel_time_in_hour))
-
-        weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
-        console.print("🌦️ Weather Advisory:", style = "other")
-
-        for i in track(range(10), description=f"[deco]Chasing Clouds...[/deco]"):
-            time.sleep(0.1)  # Simulate work being done
-
-        console.print(weather_advisory, style="answer")
-        console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
-        console.print(
-            f"🧭 Directions from {orig_loc} to {dest_loc} {vehicle}", style="answer"
-        )
-
-        print_steps(paths_data, orig_loc, dest_loc)
-        console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
-
-        voice_option = console.input("[question]Would you like voice-like instructions? (y/n): [/question]").lower()
-        if check_quit(voice_option):
+    while True:
+        # Select vehicle profile with visual menu
+        vehicle = select_vehicle_profile()
+        if check_quit(vehicle):
             break
-        if voice_option.startswith('y'):
-            natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
-            voice_navigation(natural_instructions)
 
-        console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
-        accommodations_option = console.input(f"[question]Would you like to find accommodation in {dest_loc}? (y/n): [/question]").lower()
-        if check_quit(accommodations_option):
+        # Get starting location
+        loc1 = Prompt.ask("\n🏁 [question]Starting Location[/question]")
+        if check_quit(loc1):
             break
-        if accommodations_option.startswith('y'):
-            accommodations = gpt.find_accommodations(dest_loc)
-            for i in track(range(10), description=f"[deco]Exploring hidden gems...[/deco]"):
-                time.sleep(0.1)
-            console.print(f"Here are accommodations in {dest_loc}.",style= "answer")
-            console.print(accommodations,style = "answer")
-        console.print("------------------------------------------------------------------------------------------------------------------------------------",style="deco")
-    else:
-        console.print(f'❌ Error message: {paths_data.get("message", "Unknown error")}',style="error")
 
+        # Show loading animation during geocoding
+        with console.status("[deco]Finding location...[/deco]", spinner="dots"):
+            orig_status, orig_lat, orig_lng, orig_loc = geo.geocoding(loc1)
 
-    table = Table(title="Trip Summary")
-    seconds = float(travel_time) // 1000
-    formatted_time = str(datetime.timedelta(seconds = seconds))
+        if orig_status != 200:
+            console.print(Panel("❌ Could not find starting location",
+                               border_style="error",
+                               box=box.ROUNDED))
+            continue
 
-    table.add_column("Departure", justify="right", style="deco", no_wrap=True)
-    table.add_column("Arrival", style="deco")
-    table.add_column("Duration", style = "deco")
-    table.add_column("Transportation", justify="right", style="deco")
+        # Get destination
+        loc2 = Prompt.ask("\n🏁 [question]Destination[/question]")
+        if check_quit(loc2):
+            break
 
-    table.add_row(f"{loc1.title()}", f"{loc2.title()}", f"{formatted_time}", f"{vehicle.title()}")
+        # Show loading animation during geocoding
+        with console.status("[deco]Finding location...[/deco]", spinner="dots"):
+            dest_status, dest_lat, dest_lng, dest_loc = geo.geocoding(loc2)
 
+        if dest_status != 200:
+            console.print(Panel("❌ Could not find destination",
+                               border_style="error",
+                               box=box.ROUNDED))
+            continue
 
+        console.print(Panel(f"🚩 From: [highlight]{orig_loc}[/highlight]\n🏁 To: [highlight]{dest_loc}[/highlight]",
+                           title="Your Route",
+                           border_style="panel.border",
+                           box=box.ROUNDED))
 
-    console.print(table)
+        paths_status = 404
+        paths_data = None
+
+        if vehicle == "public":
+            try:
+                start_time = Prompt.ask("🕒 [question]Please provide a start time[/question]", default="1pm")
+                if check_quit(start_time):
+                    break
+
+                with console.status("[deco]Planning your public transit route...[/deco]", spinner="dots"):
+                    paths_data, paths_status = gpt.route_public_transportation(orig_loc, dest_loc, start_time)
+            except Exception as e:
+                console.print(Panel(f"⚠️ Couldn't generate route: {str(e)}",
+                                   border_style="error",
+                                   box=box.ROUNDED))
+
+        elif orig_status == 200 and dest_status == 200:
+            op = "&point=" + str(orig_lat) + "%2C" + str(orig_lng)
+            dp = "&point=" + str(dest_lat) + "%2C" + str(dest_lng)
+            paths_url = route_url + urllib.parse.urlencode(
+                {"key": graphhopper_api_key, "vehicle": vehicle}
+            ) + op + dp
+
+            with console.status("[deco]Calculating your route...[/deco]", spinner="dots"):
+                response = requests.get(paths_url)
+                paths_status = response.status_code
+                paths_data = response.json()
+
+            api_info = f"🛣️ Routing API Status: {paths_status}\n🔗 API URL: {paths_url}"
+            console.print(Panel(api_info,
+                               title="API Details",
+                               border_style="deco",
+                               box=box.ROUNDED))
+
+        # Process and display route if data is available
+        if paths_status == 200 and paths_data is not None:
+            travel_time = paths_data["paths"][0]["time"]
+            travel_time_in_hour = float(travel_time) / 1000 / 60 / 60
+
+            # Display weather information
+            weather = OpenMeteo()
+            with console.status("[deco]Checking weather conditions...[/deco]", spinner="dots"):
+                curr_weather = weather.get_weather(orig_lat, orig_lng, hours=1)
+                forecast = weather.get_weather(dest_lat, dest_lng, hours=math.ceil(travel_time_in_hour))
+                weather_advisory = gpt.check_weather_conditions(orig_loc, dest_loc, str(travel_time_in_hour), curr_weather, forecast)
+
+            console.print(Panel(weather_advisory,
+                               title="🌦️ Weather Advisory",
+                               border_style="panel.border",
+                               box=box.ROUNDED))
+
+            # Print route steps
+            print_steps(paths_data, orig_loc, dest_loc, vehicle)
+
+            # Voice navigation option
+            voice_option = Confirm.ask("Would you like voice-like instructions?")
+            if voice_option:
+                with console.status("[deco]Preparing voice navigation...[/deco]", spinner="dots"):
+                    natural_instructions = gpt.convert_to_natural_instructions(paths_data["paths"][0]["instructions"])
+                voice_navigation(natural_instructions)
+
+            # Accommodation option
+            accommodations_option = Confirm.ask(f"Would you like to find accommodation in {dest_loc}?")
+            if accommodations_option:
+                with console.status(f"[deco]Finding places to stay in {dest_loc}...[/deco]", spinner="dots"):
+                    accommodations = gpt.find_accommodations(dest_loc)
+
+                console.print(Panel(accommodations,
+                                   title=f"🏨 Accommodations in {dest_loc}",
+                                   border_style="panel.border",
+                                   box=box.ROUNDED))
+
+            # Create final trip summary
+            seconds = float(travel_time) // 1000
+            formatted_time = str(datetime.timedelta(seconds=seconds))
+
+            table = Table(title="🚗 Trip Summary", box=box.DOUBLE, title_style="title")
+            table.add_column("Departure", justify="right", style="highlight")
+            table.add_column("Arrival", style="highlight")
+            table.add_column("Duration", style="answer")
+            table.add_column("Transportation", style="answer")
+
+            table.add_row(f"{loc1.title()}", f"{loc2.title()}", f"{formatted_time}", f"{vehicle.title()}")
+            console.print(table)
+
+        else:
+            console.print(Panel(f'❌ Error: {paths_data.get("message", "Unknown error")}',
+                               border_style="error",
+                               box=box.ROUNDED))
+
+        # Ask to plan another route
+        if not Confirm.ask("\nPlan another route?"):
+            break
+
+    # Goodbye message
+    console.print(Panel("👋 Thank you for using TravelGuide!",
+                       border_style="title",
+                       box=box.DOUBLE))
+
+if __name__ == "__main__":
+    main()
