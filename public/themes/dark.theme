@@ -1,0 +1,15 @@
+[metadata]
+name = dark
+description = Dark mode theme
+tags = dark
+inherit = True
+
+[styles]
+answer = #def6ca
+deco = #568259
+error = #ce2d4f
+highlight = bold #f8bdc4
+menu.border = #53599a
+panel.border = #568259
+question = bold #53599a
+title = bold #ff875f

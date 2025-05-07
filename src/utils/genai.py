@@ -184,7 +184,7 @@ class Genai:
             return parsed_json, paths_status
         except Exception as e:
             return f"❌ Error parsing input: {str(e)}"
-        
+
     def check_weather_conditions(self, departure, destination, travel_time, current_weather, forecast_weather):
         """
         Analyzes weather conditions for a trip by comparing current weather in the departure

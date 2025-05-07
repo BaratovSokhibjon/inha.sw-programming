@@ -1,0 +1,15 @@
+[metadata]
+name = light
+description = Light mode theme
+tags = light
+inherit = True
+
+[styles]
+answer = #006400
+deco = #2e8b57
+error = #b22222
+highlight = bold #9932cc
+menu.border = #3a539b
+panel.border = #2e8b57
+question = bold #3a539b
+title = bold #cd5c5c
